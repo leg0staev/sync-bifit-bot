@@ -72,6 +72,7 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         errors = await asyncio.gather(*coroutines)
         if any(errors):
             await update.message.reply_text("возникли ошибки при отправке данных:\n"
+                                            "{Яндекс}, {Озон}, {Али}, {Вк}"
                                             f"{errors}")
         else:
             await update.message.reply_text("Отправка прошла без ошибок!")
