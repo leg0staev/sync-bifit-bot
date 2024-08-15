@@ -75,8 +75,8 @@ class Request:
                     logger.error(f'REQUEST ERROR {e}')
                     return {'error': str(e)}
 
-                response_text = await response.text()
-                return json.loads(response_text)
+                response_json = await response.json()
+                return response_json
 
             # Пример использования асинхронного метода
             # async def main():
