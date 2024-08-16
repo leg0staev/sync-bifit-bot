@@ -56,12 +56,11 @@ class Request:
 
         return response.json()
 
-    async def send_post_async(self) -> Dict[str, str]:
-
-        url = self.url
-        headers = self.headers
-        data = self.body
-        params = self.query_params
+    async def send_post_async(self, url=None, headers=None, data=None, params=None) -> Dict[str, str]:
+        url = url or self.url
+        headers = headers or self.headers
+        data = data or self.body
+        params = params or self.query_params
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url=url,
@@ -76,8 +75,8 @@ class Request:
                     logger.error(f'REQUEST ERROR {e}')
                     return {'error': str(e)}
 
-                response_text = await response.text()
-                return json.loads(response_text)
+                response_json = await response.json()
+                return response_json
 
             # Пример использования асинхронного метода
             # async def main():

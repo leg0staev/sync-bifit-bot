@@ -6,10 +6,13 @@ import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
+from Clases.BifitApi.BifitSession import BifitSession
 from methods import get_markets_products
 from methods_async import *
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
     OZON_CLIENT_ID, OZON_ADMIN_KEY, USERNAME, PASSWORD, BOT_TOKEN
+
+bifit_session = BifitSession(USERNAME, PASSWORD)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -18,8 +21,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
+    await bifit_session.get_token_async()
 
-    bifit_tok = await get_bifit_token_async(USERNAME, PASSWORD)
+    bifit_tok = bifit_session.token
+    # bifit_tok = await get_bifit_token_async(USERNAME, PASSWORD)
     if bifit_tok is None:
         await update.message.reply_text(f"не получил токен бифит. сервер вернул ошибку."
                                         f" тапни /sync чтобы попробовать еще раз")
