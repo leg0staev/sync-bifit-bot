@@ -20,7 +20,7 @@ class BifitSession(Request):
         'trade_object',
     )
 
-    def __init__(self, username, password):
+    def __init__(self, username, password) -> None:
         super().__init__()
         self.username = username
         self.password = password
@@ -52,7 +52,7 @@ class BifitSession(Request):
         return self.access_token
 
     @property
-    async def org(self):
+    async def org(self) -> Organization:
         """Получение организации из состояния экземпляра класса"""
         logger.debug('organisation started')
         if self.organisation is None:
@@ -63,7 +63,7 @@ class BifitSession(Request):
         return self.organisation
 
     @property
-    async def trade_obj(self):
+    async def trade_obj(self) -> TradeObject:
         """Получение торгового объекта из состояния экземпляра класса"""
         logger.debug('trade_obj started')
         if self.trade_object is None:
@@ -73,7 +73,7 @@ class BifitSession(Request):
             logger.debug('нашел данные по организации в экземпляре класса сессии')
         return self.trade_object
 
-    async def get_token_by_refresh_async(self):
+    async def get_token_by_refresh_async(self) -> None:
         """Получение токена, если он истек."""
         logger.debug('get_token_by_refresh_async started')
         body = {
