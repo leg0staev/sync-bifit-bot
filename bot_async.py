@@ -16,6 +16,8 @@ bifit_session = BifitSession(USERNAME, PASSWORD)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """старт бота, инициализация, получение токена и данных по организации"""
+    await bifit_session.initialize()
     await update.message.reply_text("tap /sync")
 
 
@@ -30,13 +32,13 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return None
     await update.message.reply_text("получил токен бифит")
 
-    my_org = await get_first_bifit_org_async(bifit_tok)
+    my_org = await bifit_session.org
     if my_org is None:
         await update.message.reply_text(f"не получил список организаций. ошибка."
                                         f" тапни /sync чтобы попробовать еще раз")
         return None
 
-    my_trade_obj = await get_first_bifit_trade_obj_async(bifit_tok, my_org.id)
+    my_trade_obj = await bifit_session.trade_obj
     if my_trade_obj is None:
         await update.message.reply_text(f"не получил список торг объектов. ошибка."
                                         f" тапни /sync чтобы попробовать еще раз")
