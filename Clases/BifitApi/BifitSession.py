@@ -1,13 +1,24 @@
 import time
 
-from Clases.BifitApi.Request import Request
+from Clases.BifitApi.OrgListReq import *
+from Clases.BifitApi.Organization import *
+from Clases.BifitApi.TradeObjListReq import *
+from Clases.BifitApi.TradeObject import TradeObject
 from logger import logger
 
 
 class BifitSession(Request):
     AUTH_URL = 'https://kassa.bifit.com/cashdesk-api/v1/oauth/token'
 
-    __slots__ = 'username', 'password', 'access_token', 'expiration_time', 'refresh_token'
+    __slots__ = (
+        'username',
+        'password',
+        'access_token',
+        'expiration_time',
+        'refresh_token',
+        'organisation',
+        'trade_object',
+    )
 
     def __init__(self, username, password):
         super().__init__()
@@ -16,16 +27,20 @@ class BifitSession(Request):
         self.access_token = None
         self.expiration_time = None
         self.refresh_token = None
+        self.organisation = None
+        self.trade_object = None
         logger.debug('создал класс сессии бифит-касса')
 
     async def initialize(self) -> None:
-        """Асинхронная инициализация токена."""
+        """Асинхронная инициализация класса."""
         await self.get_new_token_async()
+        await self.get_first_bifit_org_async()
+        await self.get_first_bifit_trade_obj_async()
 
     @property
     async def token(self) -> str:
-        """Получение токена из состояния класса"""
-        logger.debug('get_token started')
+        """Получение токена из состояния экземпляра класса"""
+        logger.debug('token started')
         if self.expiration_time is None:
             logger.debug('старого токена нет, пробую получить')
             await self.get_new_token_async()
@@ -35,6 +50,28 @@ class BifitSession(Request):
         else:
             logger.debug('токен существует и он еще не истек')
         return self.access_token
+
+    @property
+    async def org(self):
+        """Получение организации из состояния экземпляра класса"""
+        logger.debug('organisation started')
+        if self.organisation is None:
+            logger.debug('в сессии нет данных по организации, пробую получить')
+            await self.get_first_bifit_trade_obj_async()
+        else:
+            logger.debug('нашел данные по торговому объекту в экземпляре класса сессии')
+        return self.organisation
+
+    @property
+    async def trade_obj(self):
+        """Получение торгового объекта из состояния экземпляра класса"""
+        logger.debug('trade_obj started')
+        if self.trade_object is None:
+            logger.debug('в сессии нет данных по торговому объекту, пробую получить')
+            await self.get_first_bifit_org_async()
+        else:
+            logger.debug('нашел данные по организации в экземпляре класса сессии')
+        return self.trade_object
 
     async def get_token_by_refresh_async(self):
         """Получение токена, если он истек."""
@@ -82,3 +119,37 @@ class BifitSession(Request):
             self.expiration_time = time.time() + expires_in
         except (KeyError, ValueError):
             logger.error('Отсутствует или некорректное значение expires_in в ответе сервера - %s', response)
+
+    async def get_first_bifit_org_async(self) -> None:
+        logger.debug('get_first_bifit_org_async started')
+        org_list_request = OrgListReq(token=await self.token)
+        org_list_response = await org_list_request.send_post_async()
+
+        if 'error' in org_list_response:
+            logger.error(f'Ошибка на этапе запроса списка организаций - {org_list_response}')
+        else:
+            try:
+                org_list = [Organization(org) for org in org_list_response]
+                self.organisation = org_list[0]
+                logger.debug('get_bifit_org_list_async finished smoothly')
+            except KeyError as e:
+                logger.error(f'Ошибка формирования списка организаций - {e}')
+                logger.debug('get_bifit_org_list_async finished with exception')
+
+    async def get_first_bifit_trade_obj_async(self) -> None:
+        logger.debug('get_first_bifit_trade_obj_async started')
+        if self.organisation is None:
+            await self.get_first_bifit_org_async()
+        trade_obj_list_request = TradeObjListReq(token=await self.token, org_id=self.organisation.id)
+        trade_obj_list_response = await trade_obj_list_request.send_post_async()
+
+        if 'error' in trade_obj_list_response:
+            logger.error(f'Ошибка на этапе запроса списка организаций - {trade_obj_list_response}')
+        else:
+            try:
+                trade_obj_list = [TradeObject(obj) for obj in trade_obj_list_response]
+                self.trade_object = trade_obj_list[0]
+                logger.debug('get_bifit_org_list_async finished smoothly')
+            except KeyError as e:
+                logger.error(f'Ошибка формирования списка торговых объектов - {e}')
+                logger.debug('get_bifit_org_list_async finished with exception')
