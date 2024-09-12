@@ -21,9 +21,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
-    await bifit_session.get_token_async()
 
-    bifit_tok = bifit_session.token
+    bifit_tok = await bifit_session.token
     # bifit_tok = await get_bifit_token_async(USERNAME, PASSWORD)
     if bifit_tok is None:
         await update.message.reply_text(f"не получил токен бифит. сервер вернул ошибку."
