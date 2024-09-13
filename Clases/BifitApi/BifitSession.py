@@ -1,5 +1,10 @@
+import asyncio
 import time
 
+from Clases.BifitApi.Good import Good
+from Clases.BifitApi.Goods import Goods
+from Clases.BifitApi.GoodsListReq import GoodsListReq
+from Clases.BifitApi.Nomenclature import Nomenclature
 from Clases.BifitApi.OrgListReq import *
 from Clases.BifitApi.Organization import *
 from Clases.BifitApi.TradeObjListReq import *
@@ -121,6 +126,7 @@ class BifitSession(Request):
             logger.error('Отсутствует или некорректное значение expires_in в ответе сервера - %s', response)
 
     async def get_first_bifit_org_async(self) -> None:
+        """Получает первую организацию из списка Бифит-кассы (у меня она одна)"""
         logger.debug('get_first_bifit_org_async started')
         org_list_request = OrgListReq(token=await self.token)
         org_list_response = await org_list_request.send_post_async()
@@ -137,6 +143,7 @@ class BifitSession(Request):
                 logger.debug('get_bifit_org_list_async finished with exception')
 
     async def get_first_bifit_trade_obj_async(self) -> None:
+        """Получает первый торговый объект из списка Бифит-кассы (у меня он один)"""
         logger.debug('get_first_bifit_trade_obj_async started')
         if self.organisation is None:
             await self.get_first_bifit_org_async()
@@ -153,3 +160,28 @@ class BifitSession(Request):
             except KeyError as e:
                 logger.error(f'Ошибка формирования списка торговых объектов - {e}')
                 logger.debug('get_bifit_org_list_async finished with exception')
+
+    async def get_bifit_products_list_async(self) -> list[Good] | None:
+        logger.debug('get_bifit_products_list_async started')
+
+        token = await self.token
+        org = await self.org
+        trade_obj = await self.trade_obj
+
+        goods_list_request = GoodsListReq(
+            token=token,
+            org_id=org.id,
+            trade_obj_id=trade_obj.id
+        )
+        goods_list_response = await goods_list_request.send_post_async()
+        if 'error' in goods_list_response:
+            logger.error(f'Ошибка на этапе запроса списка товаров - {goods_list_response}')
+            return None
+        try:
+            products = [Good(Goods(item['goods']), Nomenclature(item['nomenclature'])) for item in goods_list_response]
+            logger.debug('get_bifit_products_list_async finished smoothly')
+            return products
+        except KeyError as e:
+            logger.error(f'Ошибка формирования списка товаров - {e}')
+            logger.debug('get_bifit_products_list_async finished with exception')
+            return None

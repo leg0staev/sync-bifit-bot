@@ -4,7 +4,7 @@
 import asyncio
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 from Clases.BifitApi.BifitSession import BifitSession
 from methods import get_markets_products
@@ -21,33 +21,28 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("tap /sync")
 
 
+async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запускает процесс списания товаров из склада бифит-кассы"""
+    await update.message.reply_text("это что рассчет? сейчас проверю..")
+
+    goods_list = await bifit_session.get_bifit_products_list_async()
+    if goods_list is None:
+        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
+                                        f" тапни /sync чтобы попробовать еще раз")
+        return None
+
+    await update.message.reply_text("получил товары из Бифит")
+    calculation = update.message.text
+    await update.message.reply_text(calculation)
+
+
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
-    bifit_tok = await bifit_session.token
-    # bifit_tok = await get_bifit_token_async(USERNAME, PASSWORD)
-    if bifit_tok is None:
-        await update.message.reply_text(f"не получил токен бифит. сервер вернул ошибку."
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
-    await update.message.reply_text("получил токен бифит")
+    goods_list = await bifit_session.get_bifit_products_list_async()
 
-    my_org = await bifit_session.org
-    if my_org is None:
-        await update.message.reply_text(f"не получил список организаций. ошибка."
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
-
-    my_trade_obj = await bifit_session.trade_obj
-    if my_trade_obj is None:
-        await update.message.reply_text(f"не получил список торг объектов. ошибка."
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
-
-    await update.message.reply_text("получил данные по объекту и организации")
-    goods_list = await get_bifit_products_list_async(bifit_tok, my_org.id, my_trade_obj.id)
     if goods_list is None:
-        await update.message.reply_text(f"не получил список товаров. ошибка."
+        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
                                         f" тапни /sync чтобы попробовать еще раз")
         return None
 
@@ -95,6 +90,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     # application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("sync", sync))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
     # on non command i.e message - echo the message on Telegram
     # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
