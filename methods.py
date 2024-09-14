@@ -1,22 +1,21 @@
-import base64
-import hashlib
-
-from Clases.BifitApi.TradeObjListReq import TradeObjListReq
-from Clases.BifitApi.GoodsListReq import *
-from Clases.BifitApi.AuthReq import *
-from Clases.BifitApi.OrgListReq import *
-from Clases.BifitApi.Organization import *
-from Clases.BifitApi.TradeObject import *
-from Clases.BifitApi.Good import *
-from Clases.BifitApi.Goods import *
-from Clases.BifitApi.Nomenclature import *
-from Clases.ApiMarketplaces.Ya.YAapi import YAapi
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
+from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
+from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
+from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 from Clases.ApiMarketplaces.Vk.VkApi import VkApi
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
-from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
-from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
-from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
+from Clases.ApiMarketplaces.Ya.YAapi import YAapi
+from Clases.BifitApi.AuthReq import *
+from Clases.BifitApi.Good import *
+from Clases.BifitApi.Goods import *
+from Clases.BifitApi.GoodsListReq import *
+from Clases.BifitApi.Nomenclature import *
+from Clases.BifitApi.OrgListReq import *
+from Clases.BifitApi.Organization import *
+from Clases.BifitApi.TradeObjListReq import TradeObjListReq
+from Clases.BifitApi.TradeObject import *
+
+from logger import logger
 
 
 def get_bifit_token(username: str, pswd: bytes) -> str:
@@ -39,6 +38,8 @@ def get_bifit_products_list(token: str, org_id: str, obj_id: str) -> list[Good]:
 
 
 def get_markets_products(products_list: list[Good]) -> tuple[dict, dict, dict, dict]:
+    logger.debug('get_markets_products started')
+
     ya_goods: dict[str:int] = {}
     ali_goods: dict[str:int] = {}
     vk_goods: dict[str:int] = {}
@@ -64,21 +65,37 @@ def get_markets_products(products_list: list[Good]) -> tuple[dict, dict, dict, d
     return ya_goods, ali_goods, vk_goods, ozon_goods
 
 
-def get_encode(str_var: str) -> bytes:
-    """
-    функция кодирования пароля
-    пароль -> SHA-256 -> base64
-    """
+def parse_calculation(string: str) -> dict[str, tuple[str, str]] | None:
+    """парсит расчет"""
+    logger.debug('parse_calculation started')
+    lines = string.strip().split('\n')
+    template = '№ п/п  наименование  штрих код  -  цена за ед    -  кол-во    -  всего'
+    logger.debug(f'{lines=}')
+    if template not in lines[0]:
+        logger.debug('parse_calculation finished with extension')
+        return None
 
-    # перекодирование в формат UTF-8
-    data = str_var.encode('utf-8')
-    # вычисление хеша SHA-256
-    hash_object = hashlib.sha256(data)
-    hex_dig = hash_object.digest()
-    # кодирование в base64
-    base64_bytes = base64.b64encode(hex_dig)
+    dictionary = dict()
 
-    return base64_bytes
+    for line in lines[1:]:
+        specifications = line.split(' - ')
+        logger.debug(f'{specifications=}')
+        if len(specifications) < 4:
+            break
+        try:
+            product_name = specifications[0].strip()
+            logger.debug(f'{product_name=}')
+            product_sku = specifications[2].strip()
+            logger.debug(f'{product_sku=}')
+            product_quantity = specifications[7].strip()
+            logger.debug(f'{product_quantity=}')
+            if product_sku:
+                dictionary[product_sku] = product_quantity, product_name
+        except IndexError as e:
+            logger.error(e)
+
+    logger.debug('parse_calculation finished smoothly')
+    return dictionary
 
 
 def send_to_yandex(ya_token: str,

@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 from Clases.BifitApi.BifitSession import BifitSession
-from methods import get_markets_products
+from methods import get_markets_products, parse_calculation
 from methods_async import *
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
     OZON_CLIENT_ID, OZON_ADMIN_KEY, USERNAME, PASSWORD, BOT_TOKEN
@@ -23,7 +23,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс списания товаров из склада бифит-кассы"""
+    calculation = update.message.text
+    await update.message.reply_text(calculation)
     await update.message.reply_text("это что рассчет? сейчас проверю..")
+
+    products_to_remove = parse_calculation(calculation)
+
+    if not products_to_remove:
+        await update.message.reply_text("ты что то не то прислал..")
+        return None
+
+    await update.message.reply_text("что надо списать:\n"
+                                    f"{products_to_remove}")
 
     goods_list = await bifit_session.get_bifit_products_list_async()
     if goods_list is None:
@@ -32,7 +43,6 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return None
 
     await update.message.reply_text("получил товары из Бифит")
-    calculation = update.message.text
     await update.message.reply_text(calculation)
 
 
