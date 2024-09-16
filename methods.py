@@ -1,3 +1,5 @@
+from typing import Tuple, Dict, Any, List, LiteralString
+
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
@@ -65,37 +67,54 @@ def get_markets_products(products_list: list[Good]) -> tuple[dict, dict, dict, d
     return ya_goods, ali_goods, vk_goods, ozon_goods
 
 
-def parse_calculation(string: str) -> dict[str, tuple[str, str]] | None:
+def parse_calculation(string: str) ->\
+        (tuple[dict[str, tuple[str, int]], list[tuple[str, int]]] | None):
     """парсит расчет"""
     logger.debug('parse_calculation started')
     lines = string.strip().split('\n')
     template = '№ п/п  наименование  штрих код  -  цена за ед    -  кол-во    -  всего'
-    logger.debug(f'{lines=}')
     if template not in lines[0]:
-        logger.debug('parse_calculation finished with extension')
+        logger.debug('строка не сходится с шаблоном')
         return None
 
-    dictionary = dict()
+    to_write_off = {}
+    no_barcode = []
 
     for line in lines[1:]:
         specifications = line.split(' - ')
-        logger.debug(f'{specifications=}')
-        if len(specifications) < 4:
+        *number_with_name, barcode = specifications[0].split()
+        if not number_with_name:
+            logger.debug(f'пустое имя {number_with_name=} остановка')
             break
+        quantity, *_ = specifications[-2].split()
+        logger.debug(f'{quantity=}')
         try:
-            product_name = specifications[0].strip()
-            logger.debug(f'{product_name=}')
-            product_sku = specifications[2].strip()
-            logger.debug(f'{product_sku=}')
-            product_quantity = specifications[7].strip()
-            logger.debug(f'{product_quantity=}')
-            if product_sku:
-                dictionary[product_sku] = product_quantity, product_name
-        except IndexError as e:
-            logger.error(e)
+            quantity = int(quantity)
+        except ValueError as e:
+            logger.error(f'не смог преобразовать количество из строки в число {e}')
+
+        if not barcode.isdigit():
+            number_with_name.append(barcode)
+            no_barcode.append((' '.join(number_with_name[1:]), quantity))
+        else:
+            product_name = ' '.join(number_with_name[1:])
+            to_write_off[barcode] = (product_name, quantity)
+
+    return to_write_off, no_barcode
+
+    # try:
+    #     product_name = specifications[0].strip()
+    #     logger.debug(f'{product_name=}')
+    #     product_sku = specifications[2].strip()
+    #     logger.debug(f'{product_sku=}')
+    #     product_quantity = specifications[7].strip()
+    #     logger.debug(f'{product_quantity=}')
+    #     if product_sku:
+    #         dictionary[product_sku] = product_quantity, product_name
+    # except IndexError as e:
+    #     logger.error(e)
 
     logger.debug('parse_calculation finished smoothly')
-    return dictionary
 
 
 def send_to_yandex(ya_token: str,
