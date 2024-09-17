@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 from Clases.BifitApi.BifitSession import BifitSession
-from methods import get_markets_products, parse_calculation
+from methods import get_markets_products, parse_calculation, get_write_off_msg
 from methods_async import *
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
     OZON_CLIENT_ID, OZON_ADMIN_KEY, USERNAME, PASSWORD, BOT_TOKEN
@@ -24,26 +24,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс списания товаров из склада бифит-кассы"""
     calculation = update.message.text
-    await update.message.reply_text(calculation)
     await update.message.reply_text("это что рассчет? сейчас проверю..")
 
-    products_to_remove = parse_calculation(calculation)
+    products_to_remove, without_barcode = parse_calculation(calculation)
 
     if not products_to_remove:
         await update.message.reply_text("ты что то не то прислал..")
         return None
 
-    await update.message.reply_text("что надо списать:\n"
-                                    f"{products_to_remove}")
+    message = get_write_off_msg(products_to_remove, without_barcode)
 
+    await update.message.reply_text(message)
+    await update.message.reply_text("сейчас запрошу актуальные остатки из Бифит")
     goods_list = await bifit_session.get_bifit_products_list_async()
     if goods_list is None:
         await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
                                         f" тапни /sync чтобы попробовать еще раз")
         return None
 
-    await update.message.reply_text("получил товары из Бифит")
-    await update.message.reply_text(calculation)
+    await update.message.reply_text("получил товары из Бифит, минусую.")
+
+
 
 
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

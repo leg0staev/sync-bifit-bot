@@ -1,5 +1,3 @@
-from typing import Tuple, Dict, Any, List, LiteralString
-
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
@@ -67,7 +65,7 @@ def get_markets_products(products_list: list[Good]) -> tuple[dict, dict, dict, d
     return ya_goods, ali_goods, vk_goods, ozon_goods
 
 
-def parse_calculation(string: str) ->\
+def parse_calculation(string: str) -> \
         (tuple[dict[str, tuple[str, int]], list[tuple[str, int]]] | None):
     """парсит расчет"""
     logger.debug('parse_calculation started')
@@ -100,21 +98,20 @@ def parse_calculation(string: str) ->\
             product_name = ' '.join(number_with_name[1:])
             to_write_off[barcode] = (product_name, quantity)
 
+    logger.debug('parse_calculation finished smoothly')
     return to_write_off, no_barcode
 
-    # try:
-    #     product_name = specifications[0].strip()
-    #     logger.debug(f'{product_name=}')
-    #     product_sku = specifications[2].strip()
-    #     logger.debug(f'{product_sku=}')
-    #     product_quantity = specifications[7].strip()
-    #     logger.debug(f'{product_quantity=}')
-    #     if product_sku:
-    #         dictionary[product_sku] = product_quantity, product_name
-    # except IndexError as e:
-    #     logger.error(e)
 
-    logger.debug('parse_calculation finished smoothly')
+def get_write_off_msg(write_off: dict[str, tuple[str, int]],
+                      without_barcode: list[tuple[str, int]]) -> str:
+    """формирует сообщение с продуктами, которые надо списать"""
+    res_message = 'что надо списать:\n'
+    for product, quantity in write_off.values():
+        res_message += f'{product} - {quantity}шт\n'
+    res_message += '\nне могу списать, потому что нет штрих кода:\n'
+    for product, quantity in without_barcode:
+        res_message += f'{product} - {quantity}шт\n'
+    return res_message
 
 
 def send_to_yandex(ya_token: str,
