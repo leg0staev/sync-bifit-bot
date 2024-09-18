@@ -114,6 +114,17 @@ def get_write_off_msg(write_off: dict[str, tuple[str, int]],
     return res_message
 
 
+def products_write_off(bifit_goods: list[Good], goods_to_remove: dict[str, tuple[str, int]]) -> None:
+    goods_list = []
+    for scu, name_and_quantity in goods_to_remove.items():
+        _, quantity = name_and_quantity
+        for good in bifit_goods:
+            if scu == good.nomenclature.barcode:
+                good.goods.quantity -= quantity
+
+    ...
+
+
 def send_to_yandex(ya_token: str,
                    ya_compaign_id: int,
                    ya_warehouse_id: int,
