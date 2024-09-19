@@ -7,7 +7,8 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 from Clases.BifitApi.BifitSession import BifitSession
-from methods import get_markets_products, parse_calculation, get_write_off_msg
+from methods import get_markets_products, parse_calculation, get_write_off_msg, products_write_off, \
+    goods_list_to_csv_str
 from methods_async import *
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
     OZON_CLIENT_ID, OZON_ADMIN_KEY, USERNAME, PASSWORD, BOT_TOKEN
@@ -43,8 +44,10 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return None
 
     await update.message.reply_text("получил товары из Бифит, минусую.")
-
-
+    updated_goods_list = products_write_off(goods_list, products_to_remove)
+    csv_str = goods_list_to_csv_str(updated_goods_list)
+    send_result = await bifit_session.send_csv_stocks(csv_str)
+    await update.message.reply_text(str(send_result))
 
 
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

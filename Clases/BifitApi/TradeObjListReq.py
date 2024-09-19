@@ -2,9 +2,7 @@ from Clases.BifitApi.Request import *
 
 
 class TradeObjListReq(Request):
-    def __init__(self,
-                 token,
-                 org_id):
+    def __init__(self, token: str, org_id: str) -> None:
         super().__init__()
 
         self.url = f'https://kassa.bifit.com/cashdesk-api/v1/protected/trade_objects/list/read_all'

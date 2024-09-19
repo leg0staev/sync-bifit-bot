@@ -105,17 +105,20 @@ def parse_calculation(string: str) -> \
 def get_write_off_msg(write_off: dict[str, tuple[str, int]],
                       without_barcode: list[tuple[str, int]]) -> str:
     """формирует сообщение с продуктами, которые надо списать"""
+    logger.debug('get_write_off_msg started')
     res_message = 'что надо списать:\n'
     for product, quantity in write_off.values():
         res_message += f'{product} - {quantity}шт\n'
     res_message += '\nне могу списать, потому что нет штрих кода:\n'
     for product, quantity in without_barcode:
         res_message += f'{product} - {quantity}шт\n'
+    logger.debug('get_write_off_msg finished')
     return res_message
 
 
 def products_write_off(bifit_goods: list[Good], goods_to_remove: dict[str, tuple[str, int]]) -> list[Good]:
-    """списывает указанное в рассчете количество с товаров полученных от Бифит"""
+    """Списывает указанное в рассчете количество с товаров полученных от Бифит"""
+    logger.debug('products_write_off started')
     goods_list = []
     for scu, name_and_quantity in goods_to_remove.items():
         _, quantity = name_and_quantity
@@ -123,7 +126,29 @@ def products_write_off(bifit_goods: list[Good], goods_to_remove: dict[str, tuple
             if scu == good.nomenclature.barcode:
                 good.goods.quantity -= quantity
                 goods_list.append(good)
+    logger.debug('products_write_off finished')
     return goods_list
+
+
+def goods_list_to_csv_str(products_list: list[Good]) -> str:
+    """Формирует строковое представление CSV файла с обновленным количеством товаров"""
+    logger.debug('goods_list_to_csv_str started')
+    headlines = ('Количество', 'Идентификатор торгового объекта', 'Идентификатор номенклатуры')
+    result = ''
+    csv_header = ';'.join(f'"{headline}"' for headline in headlines)
+    result += csv_header + '\n'
+    for product in products_list:
+        csv_line = ';'.join(
+            (
+                f'"{product.goods.quantity}"',
+                f'"{product.goods.trade_trade_object_id}"',
+                f'"{product.goods.nomenclature_id}"'
+            )
+        )
+        result += csv_line + '\n'
+    logger.debug(f'{result}')
+    logger.debug('goods_list_to_csv_str finished')
+    return result
 
 
 def send_to_yandex(ya_token: str,
@@ -142,7 +167,7 @@ def send_to_ali(ali_token: str, ali_goods_dict: dict[str:int]) -> dict[str, str]
     return ali_sand_remains_response
 
 
-def send_to_vk(vk_token: str, vk_owner_id: int, vk_api_ver: float, vk_goods_dict: dict[str:int]) -> dict:
+def send_to_vk(vk_token: str, vk_owner_id: int, vk_api_ver: float, vk_goods_dict: dict[str:int]) -> tuple:
     vk_api = VkApi(vk_token, vk_owner_id, vk_api_ver)
     vk_products_response = VkProdResponse(vk_api.get_all_products())
     vk_products_dict = vk_products_response.get_skus_id_dict()

@@ -21,7 +21,8 @@ class Request:
     def __init__(self):
         self.url: Optional[str] = None
         self.headers: Optional[Dict[str, str]] = None
-        self.body: Optional[Dict[str, str]] = None
+        self.json: Optional[Dict[str, str]] = None
+        self.files: Optional[str] = None
         self.query_params: Optional[Dict[str, str]] = None
 
     def send_post(self) -> Dict[str, str]:
@@ -38,7 +39,7 @@ class Request:
 
         url = self.url
         headers = self.headers
-        data = json.dumps(self.body)
+        data = json.dumps(self.json)
         params = self.query_params
 
         response = requests.post(url=url,
@@ -56,16 +57,24 @@ class Request:
 
         return response.json()
 
-    async def send_post_async(self, url=None, headers=None, data=None, params=None) -> Dict[str, str]:
+    async def send_post_async(self,
+                              url=None,
+                              headers=None,
+                              json_data=None,
+                              files=None,
+                              params=None,
+                              ) -> Dict[str, str]:
         url = url or self.url
         headers = headers or self.headers
-        data = data or self.body
+        json_data = json_data or self.json
+        files = files or self.files
         params = params or self.query_params
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url=url,
                                     headers=headers,
-                                    json=data,
+                                    json=json_data,
+                                    data=files,
                                     params=params) as response:
                 logger.info(f'HTTP async Request: POST {url}, {response.status}')
 
