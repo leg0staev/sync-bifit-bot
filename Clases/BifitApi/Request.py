@@ -22,7 +22,7 @@ class Request:
         self.url: Optional[str] = None
         self.headers: Optional[Dict[str, str]] = None
         self.json: Optional[Dict[str, str]] = None
-        self.files: Optional[str] = None
+        self.files: Optional[aiohttp.FormData] = None
         self.query_params: Optional[Dict[str, str]] = None
 
     def send_post(self) -> Dict[str, str]:

@@ -17,6 +17,7 @@ class SendCSVStocksRequest(Request):
             'organization_id': org_id,
             'charset': 'utf-8',
         }
-        self.files = {
-            'file': ('nomenclatures.csv', csv_str, 'text/csv')  # имя файла, данные, тип
-        }
+
+        self.files = aiohttp.FormData()
+        self.files.add_field('file', csv_str, filename='nomenclatures.csv', content_type='text/csv')
+

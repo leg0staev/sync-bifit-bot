@@ -1,4 +1,4 @@
-import asyncio
+import json
 import time
 from typing import Dict
 
@@ -163,9 +163,9 @@ class BifitSession(Request):
                 logger.error(f'Ошибка формирования списка торговых объектов - {e}')
                 logger.debug('get_bifit_org_list_async finished with exception')
 
-    async def get_bifit_products_list_async(self) -> list[Good] | None:
+    async def get_bifit_products_set_async(self) -> set[Good] | None:
         """получает список всех товаров из склада Бифит-кассы"""
-        logger.debug('get_bifit_products_list_async started')
+        logger.debug('get_bifit_products_set_async started')
 
         token = await self.token
         org = await self.org
@@ -181,12 +181,12 @@ class BifitSession(Request):
             logger.error(f'Ошибка на этапе запроса списка товаров - {goods_list_response}')
             return None
         try:
-            products = [Good(Goods(item['goods']), Nomenclature(item['nomenclature'])) for item in goods_list_response]
-            logger.debug('get_bifit_products_list_async finished smoothly')
+            products = {Good(Goods(item['goods']), Nomenclature(item['nomenclature'])) for item in goods_list_response}
+            logger.debug('get_bifit_products_set_async finished smoothly')
             return products
         except KeyError as e:
-            logger.error(f'Ошибка формирования списка товаров - {e}')
-            logger.debug('get_bifit_products_list_async finished with exception')
+            logger.error(f'Ошибка формирования множества товаров - {e}')
+            logger.debug('get_bifit_products_set_async finished with exception')
             return None
 
     async def send_csv_stocks(self, stocks_csv_str: str) -> dict[str, str] | None:
@@ -201,11 +201,16 @@ class BifitSession(Request):
             org_id=org.id,
             csv_str=stocks_csv_str
         )
+        logger.debug('сформировал класс запроса на отправку CSV. Отправляю запрос')
 
         send_stocks_response = await send_stocks_request.send_post_async()
+        logger.debug(f'ответ сервера {send_stocks_response}')
+        # {'exceptionMessage': None, 'exceptionList': [], 'itemQty': 1, 'consumedTime': 0}
+
         if 'error' in send_stocks_response:
             logger.error(f'Ошибка на этапе отправки списка товаров - {send_stocks_response}')
             logger.debug('send_stocks finished with exception')
             return None
+
         logger.debug('send_stocks finished')
         return send_stocks_response

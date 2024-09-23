@@ -3,6 +3,7 @@
 """
 import asyncio
 
+# from logger import logger
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
@@ -18,51 +19,77 @@ bifit_session = BifitSession(USERNAME, PASSWORD)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """старт бота, инициализация, получение токена и данных по организации"""
+    logger.debug("Старт бота, иницализация")
     await bifit_session.initialize()
     await update.message.reply_text("tap /sync")
+    logger.debug("Старт бота, иницализация - успех")
 
 
 async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс списания товаров из склада бифит-кассы"""
+    logger.debug("write_off started")
     calculation = update.message.text
     await update.message.reply_text("это что рассчет? сейчас проверю..")
 
     products_to_remove, without_barcode = parse_calculation(calculation)
 
-    if not products_to_remove:
+    if not any((products_to_remove, without_barcode)):
         await update.message.reply_text("ты что то не то прислал..")
+        return None
+
+    if not products_to_remove:
+        await update.message.reply_text("похоже твой рассчет без штрихколов."
+                                        " ничего списать не могу")
         return None
 
     message = get_write_off_msg(products_to_remove, without_barcode)
 
     await update.message.reply_text(message)
     await update.message.reply_text("сейчас запрошу актуальные остатки из Бифит")
-    goods_list = await bifit_session.get_bifit_products_list_async()
-    if goods_list is None:
+    goods_set = await bifit_session.get_bifit_products_set_async()
+    if goods_set is None:
         await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
                                         f" тапни /sync чтобы попробовать еще раз")
         return None
 
     await update.message.reply_text("получил товары из Бифит, минусую.")
-    updated_goods_list = products_write_off(goods_list, products_to_remove)
-    csv_str = goods_list_to_csv_str(updated_goods_list)
-    send_result = await bifit_session.send_csv_stocks(csv_str)
-    await update.message.reply_text(str(send_result))
+    updated_goods_set, outdated_goods_set = products_write_off(goods_set, products_to_remove)
+    if updated_goods_set:
+        csv_str = goods_list_to_csv_str(updated_goods_set)
+        send_result = await bifit_session.send_csv_stocks(csv_str)
+        if not send_result:
+            await update.message.reply_text(f"Какая-то ошибка на этапе отправки корректных "
+                                            f"остатков на сервер Бифит. Надо читать логи. "
+                                            f"Напиши разработчику")
+            return None
+        await update.message.reply_text("Отправил остатки на сервер Бифит.\n"
+                                        "Сообщения об ошибке:\n"
+                                        f"{send_result.get('exceptionMessage')}\n"
+                                        f"Список ошибок:\n"
+                                        f"{send_result.get('exceptionList')}\n"
+                                        f"Количество списанных товаров: "
+                                        f"{send_result.get('itemQty')}")
+    if outdated_goods_set:
+        await update.message.reply_text('**ВНИМАНИЕ!** не смог списать, потому что не '
+                                        'нашел такие штрих коды в базе Бифит. '
+                                        'Отправь фото эих товаров @c0m_a, чтобы '
+                                        'он списал вручную!\n'
+                                        f'{outdated_goods_set}')
 
 
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
-    goods_list = await bifit_session.get_bifit_products_list_async()
+    goods_set = await bifit_session.get_bifit_products_set_async()
 
-    if goods_list is None:
+    if goods_set is None:
         await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
                                         f" тапни /sync чтобы попробовать еще раз")
         return None
 
     await update.message.reply_text("получил товары из бифит")
 
-    ya_goods, ali_goods, vk_goods, ozon_goods = get_markets_products(goods_list)
+    ya_goods, ali_goods, vk_goods, ozon_goods = get_markets_products(goods_set)
 
     coroutines = []
 

@@ -1,3 +1,5 @@
+from typing import Tuple, Set
+
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
@@ -7,6 +9,7 @@ from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
 from Clases.ApiMarketplaces.Ya.YAapi import YAapi
 from Clases.BifitApi.AuthReq import *
 from Clases.BifitApi.Good import *
+from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Goods import *
 from Clases.BifitApi.GoodsListReq import *
 from Clases.BifitApi.Nomenclature import *
@@ -37,7 +40,7 @@ def get_bifit_products_list(token: str, org_id: str, obj_id: str) -> list[Good]:
     return products
 
 
-def get_markets_products(products_list: list[Good]) -> tuple[dict, dict, dict, dict]:
+def get_markets_products(products_set: set[Good]) -> tuple[dict, dict, dict, dict]:
     logger.debug('get_markets_products started')
 
     ya_goods: dict[str:int] = {}
@@ -45,7 +48,7 @@ def get_markets_products(products_list: list[Good]) -> tuple[dict, dict, dict, d
     vk_goods: dict[str:int] = {}
     ozon_goods: dict[str:int] = {}
 
-    for product in products_list:
+    for product in products_set:
         try:
             markets: list[str] = product.nomenclature.vendor_code.split("-")
             # print(markets)
@@ -66,17 +69,18 @@ def get_markets_products(products_list: list[Good]) -> tuple[dict, dict, dict, d
 
 
 def parse_calculation(string: str) -> \
-        (tuple[dict[str, tuple[str, int]], list[tuple[str, int]]] | None):
+        (tuple[dict[str, tuple[str, int]], set[tuple[str, int]]] | tuple[None, None]):
     """парсит расчет"""
     logger.debug('parse_calculation started')
     lines = string.strip().split('\n')
     template = '№ п/п  наименование  штрих код  -  цена за ед    -  кол-во    -  всего'
     if template not in lines[0]:
         logger.debug('строка не сходится с шаблоном')
-        return None
+        return None, None
+    logger.debug('рассчет получил')
 
-    to_write_off = {}
-    no_barcode = []
+    to_write_off = dict()
+    no_barcode = set()
 
     for line in lines[1:]:
         specifications = line.split(' - ')
@@ -93,11 +97,16 @@ def parse_calculation(string: str) -> \
 
         if not barcode.isdigit():
             number_with_name.append(barcode)
-            no_barcode.append((' '.join(number_with_name[1:]), quantity))
+            no_barcode.add((' '.join(number_with_name[1:]), quantity))
         else:
             product_name = ' '.join(number_with_name[1:])
             to_write_off[barcode] = (product_name, quantity)
 
+    logger.debug('спарсил рассчтет.\n'
+                 'для списания:\n'
+                 f'{to_write_off}\n'
+                 f'без штрихкода:\n'
+                 f'{no_barcode}\n')
     logger.debug('parse_calculation finished smoothly')
     return to_write_off, no_barcode
 
@@ -116,28 +125,39 @@ def get_write_off_msg(write_off: dict[str, tuple[str, int]],
     return res_message
 
 
-def products_write_off(bifit_goods: list[Good], goods_to_remove: dict[str, tuple[str, int]]) -> list[Good]:
+def products_write_off(all_bifit_goods: set[Good],
+                       goods_to_remove: dict[str, tuple[str, int]]) -> tuple[set[Good], set[str]]:
     """Списывает указанное в рассчете количество с товаров полученных от Бифит"""
     logger.debug('products_write_off started')
-    goods_list = []
+    updated_goods_set = set()
+    outdated_goods_set = set()
     for scu, name_and_quantity in goods_to_remove.items():
-        _, quantity = name_and_quantity
-        for good in bifit_goods:
+        name, quantity = name_and_quantity
+        good_str = f'{name} - штрих: {scu} - кол-во: {quantity}'
+        logger.debug(f'ищу товар {good_str}')
+        updated_good = None
+        for good in all_bifit_goods:
             if scu == good.nomenclature.barcode:
                 good.goods.quantity -= quantity
-                goods_list.append(good)
+                updated_good = good
+                updated_goods_set.add(updated_good)
+                logger.debug(f'товар нашел и сминусовал количество!')
+        if updated_good is None:
+            outdated_goods_set.add(good_str)
+            logger.debug(f'такой товар не нашел')
+
     logger.debug('products_write_off finished')
-    return goods_list
+    return updated_goods_set, outdated_goods_set
 
 
-def goods_list_to_csv_str(products_list: list[Good]) -> str:
+def goods_list_to_csv_str(products_set: set[Good]) -> str:
     """Формирует строковое представление CSV файла с обновленным количеством товаров"""
     logger.debug('goods_list_to_csv_str started')
     headlines = ('Количество', 'Идентификатор торгового объекта', 'Идентификатор номенклатуры')
     result = ''
     csv_header = ';'.join(f'"{headline}"' for headline in headlines)
     result += csv_header + '\n'
-    for product in products_list:
+    for product in products_set:
         csv_line = ';'.join(
             (
                 f'"{product.goods.quantity}"',
