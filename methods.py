@@ -1,5 +1,3 @@
-from typing import Tuple, Set
-
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
@@ -8,7 +6,6 @@ from Clases.ApiMarketplaces.Vk.VkApi import VkApi
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
 from Clases.ApiMarketplaces.Ya.YAapi import YAapi
 from Clases.BifitApi.AuthReq import *
-from Clases.BifitApi.Good import *
 from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Goods import *
 from Clases.BifitApi.GoodsListReq import *
@@ -69,20 +66,22 @@ def get_markets_products(products_set: set[Good]) -> tuple[dict, dict, dict, dic
 
 
 def parse_calculation(string: str) -> \
-        (tuple[dict[str, tuple[str, int]], set[tuple[str, int]]] | tuple[None, None]):
+        (tuple[dict[str, tuple[str, int]], set[tuple[str, int]]], set[str] | tuple[None, None, None]):
     """парсит расчет"""
     logger.debug('parse_calculation started')
     lines = string.strip().split('\n')
     template = '№ п/п  наименование  штрих код  -  цена за ед    -  кол-во    -  всего'
     if template not in lines[0]:
         logger.debug('строка не сходится с шаблоном')
-        return None, None
+        return None, None, None
     logger.debug('рассчет получил')
 
     to_write_off = dict()
     no_barcode = set()
+    no_quantity = set()
 
     for line in lines[1:]:
+
         specifications = line.split(' - ')
         *number_with_name, barcode = specifications[0].split()
         if not number_with_name:
@@ -94,6 +93,8 @@ def parse_calculation(string: str) -> \
             quantity = int(quantity)
         except ValueError as e:
             logger.error(f'не смог преобразовать количество из строки в число {e}')
+            no_quantity.add(' '.join(number_with_name[1:]))
+            continue
 
         if not barcode.isdigit():
             number_with_name.append(barcode)
@@ -105,22 +106,31 @@ def parse_calculation(string: str) -> \
     logger.debug('спарсил рассчтет.\n'
                  'для списания:\n'
                  f'{to_write_off}\n'
-                 f'без штрихкода:\n'
-                 f'{no_barcode}\n')
+                 'без штрихкода:\n'
+                 f'{no_barcode}\n'
+                 'без количества:\n'
+                 f'{no_quantity}')
     logger.debug('parse_calculation finished smoothly')
-    return to_write_off, no_barcode
+    return to_write_off, no_barcode, no_quantity
 
 
 def get_write_off_msg(write_off: dict[str, tuple[str, int]],
-                      without_barcode: list[tuple[str, int]]) -> str:
-    """формирует сообщение с продуктами, которые надо списать"""
+                      without_barcode: set[tuple[str, int]],
+                      without_quantity: set[str]) -> str:
+    """Формирует сообщение с продуктами, которые надо списать"""
     logger.debug('get_write_off_msg started')
     res_message = 'что надо списать:\n'
     for product, quantity in write_off.values():
         res_message += f'{product} - {quantity}шт\n'
-    res_message += '\nне могу списать, потому что нет штрих кода:\n'
-    for product, quantity in without_barcode:
-        res_message += f'{product} - {quantity}шт\n'
+    if without_barcode:
+        res_message += '\nне могу списать, потому что нет штрих кода:\n'
+        for product, quantity in without_barcode:
+            res_message += f'{product} - {quantity}шт\n'
+    if without_quantity:
+        res_message += '\nне могу списать, потому что нет количества:\n'
+        for product in without_quantity:
+            res_message += f'{product}\n'
+
     logger.debug('get_write_off_msg finished')
     return res_message
 

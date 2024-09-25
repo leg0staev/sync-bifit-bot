@@ -31,18 +31,19 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     calculation = update.message.text
     await update.message.reply_text("это что рассчет? сейчас проверю..")
 
-    products_to_remove, without_barcode = parse_calculation(calculation)
+    products_to_remove, without_barcode, without_quantity = parse_calculation(calculation)
 
-    if not any((products_to_remove, without_barcode)):
+    if not any((products_to_remove, without_barcode, without_quantity)):
         await update.message.reply_text("ты что то не то прислал..")
         return None
 
     if not products_to_remove:
-        await update.message.reply_text("похоже твой рассчет без штрихколов."
+        await update.message.reply_text("похоже твой рассчет без штрихколов "
+                                        "или ты забыл указать количество. "
                                         " ничего списать не могу")
         return None
 
-    message = get_write_off_msg(products_to_remove, without_barcode)
+    message = get_write_off_msg(products_to_remove, without_barcode, without_quantity)
 
     await update.message.reply_text(message)
     await update.message.reply_text("сейчас запрошу актуальные остатки из Бифит")
