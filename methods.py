@@ -83,8 +83,11 @@ def parse_calculation(string: str) -> \
     for line in lines[1:]:
 
         specifications = line.split(' - ')
-        *number_with_name, barcode = specifications[0].split()
-        if not number_with_name:
+        number_with_name, barcode = specifications[0].rsplit('  ', 1)
+        number, name = number_with_name.split('  ', 1)
+        name = name.strip()
+        barcode = barcode.strip()
+        if not name:
             logger.debug(f'пустое имя {number_with_name=} остановка')
             break
         quantity, *_ = specifications[-2].split()
@@ -96,12 +99,10 @@ def parse_calculation(string: str) -> \
             no_quantity.add(' '.join(number_with_name[1:]))
             continue
 
-        if not barcode.isdigit():
-            number_with_name.append(barcode)
-            no_barcode.add((' '.join(number_with_name[1:]), quantity))
+        if barcode:
+            to_write_off[barcode] = (name, quantity)
         else:
-            product_name = ' '.join(number_with_name[1:])
-            to_write_off[barcode] = (product_name, quantity)
+            no_barcode.add((name, quantity))
 
     logger.debug('спарсил рассчтет.\n'
                  'для списания:\n'
