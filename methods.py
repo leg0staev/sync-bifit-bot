@@ -96,7 +96,7 @@ def parse_calculation(string: str) -> \
             quantity = int(quantity)
         except ValueError as e:
             logger.error(f'не смог преобразовать количество из строки в число {e}')
-            no_quantity.add(' '.join(number_with_name[1:]))
+            no_quantity.add(f'{name} - количество: {quantity}')
             continue
 
         if barcode:
