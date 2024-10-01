@@ -1,5 +1,5 @@
 class Goods:
-    def __init__(self, data: dict):
+    def __init__(self, data: str):
         self.trade_trade_object_id = data['tradeObjectId']
         self.nomenclature_id = data['nomenclatureId']
 

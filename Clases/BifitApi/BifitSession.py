@@ -1,9 +1,16 @@
+import json
 import time
+from typing import Dict
 
+from Clases.BifitApi.Good import Good
+from Clases.BifitApi.Goods import Goods
+from Clases.BifitApi.GoodsListReq import GoodsListReq
+from Clases.BifitApi.Nomenclature import Nomenclature
 from Clases.BifitApi.OrgListReq import *
 from Clases.BifitApi.Organization import *
 from Clases.BifitApi.TradeObjListReq import *
 from Clases.BifitApi.TradeObject import TradeObject
+from Clases.BifitApi.SendCSVStocksRequest import SendCSVStocksRequest
 from logger import logger
 
 
@@ -57,7 +64,7 @@ class BifitSession(Request):
         logger.debug('organisation started')
         if self.organisation is None:
             logger.debug('в сессии нет данных по организации, пробую получить')
-            await self.get_first_bifit_trade_obj_async()
+            await self.get_first_bifit_org_async()
         else:
             logger.debug('нашел данные по торговому объекту в экземпляре класса сессии')
         return self.organisation
@@ -68,7 +75,7 @@ class BifitSession(Request):
         logger.debug('trade_obj started')
         if self.trade_object is None:
             logger.debug('в сессии нет данных по торговому объекту, пробую получить')
-            await self.get_first_bifit_org_async()
+            await self.get_first_bifit_trade_obj_async()
         else:
             logger.debug('нашел данные по организации в экземпляре класса сессии')
         return self.trade_object
@@ -82,7 +89,7 @@ class BifitSession(Request):
             "client_secret": "cashdesk-rest-client",
             "grant_type": "refresh_token",
         }
-        response = await self.send_post_async(url=BifitSession.AUTH_URL, data=body)
+        response = await self.send_post_async(url=BifitSession.AUTH_URL, json_data=body)
         self.bifit_token_response_parse(response)
 
     async def get_new_token_async(self) -> None:
@@ -95,7 +102,7 @@ class BifitSession(Request):
             "client_secret": "cashdesk-rest-client",
             "grant_type": "password",
         }
-        response = await self.send_post_async(url=BifitSession.AUTH_URL, data=body)
+        response = await self.send_post_async(url=BifitSession.AUTH_URL, json_data=body)
         # logger.debug(f'ответ сервера - {response}')
         self.bifit_token_response_parse(response)
 
@@ -121,6 +128,7 @@ class BifitSession(Request):
             logger.error('Отсутствует или некорректное значение expires_in в ответе сервера - %s', response)
 
     async def get_first_bifit_org_async(self) -> None:
+        """Получает первую организацию из списка Бифит-кассы (у меня она одна)"""
         logger.debug('get_first_bifit_org_async started')
         org_list_request = OrgListReq(token=await self.token)
         org_list_response = await org_list_request.send_post_async()
@@ -137,6 +145,7 @@ class BifitSession(Request):
                 logger.debug('get_bifit_org_list_async finished with exception')
 
     async def get_first_bifit_trade_obj_async(self) -> None:
+        """Получает первый торговый объект из списка Бифит-кассы (у меня он один)"""
         logger.debug('get_first_bifit_trade_obj_async started')
         if self.organisation is None:
             await self.get_first_bifit_org_async()
@@ -153,3 +162,55 @@ class BifitSession(Request):
             except KeyError as e:
                 logger.error(f'Ошибка формирования списка торговых объектов - {e}')
                 logger.debug('get_bifit_org_list_async finished with exception')
+
+    async def get_bifit_products_set_async(self) -> set[Good] | None:
+        """получает список всех товаров из склада Бифит-кассы"""
+        logger.debug('get_bifit_products_set_async started')
+
+        token = await self.token
+        org = await self.org
+        trade_obj = await self.trade_obj
+
+        goods_list_request = GoodsListReq(
+            token=token,
+            org_id=org.id,
+            trade_obj_id=trade_obj.id
+        )
+        goods_list_response = await goods_list_request.send_post_async()
+        if 'error' in goods_list_response:
+            logger.error(f'Ошибка на этапе запроса списка товаров - {goods_list_response}')
+            return None
+        try:
+            products = {Good(Goods(item['goods']), Nomenclature(item['nomenclature'])) for item in goods_list_response}
+            logger.debug('get_bifit_products_set_async finished smoothly')
+            return products
+        except KeyError as e:
+            logger.error(f'Ошибка формирования множества товаров - {e}')
+            logger.debug('get_bifit_products_set_async finished with exception')
+            return None
+
+    async def send_csv_stocks(self, stocks_csv_str: str) -> dict[str, str] | None:
+        """Отправляет CSV строку с остатками"""
+        logger.debug('send_stocks started')
+
+        token = await self.token
+        org = await self.org
+
+        send_stocks_request = SendCSVStocksRequest(
+            token=token,
+            org_id=org.id,
+            csv_str=stocks_csv_str
+        )
+        logger.debug('сформировал класс запроса на отправку CSV. Отправляю запрос')
+
+        send_stocks_response = await send_stocks_request.send_post_async()
+        logger.debug(f'ответ сервера {send_stocks_response}')
+        # {'exceptionMessage': None, 'exceptionList': [], 'itemQty': 1, 'consumedTime': 0}
+
+        if 'error' in send_stocks_response:
+            logger.error(f'Ошибка на этапе отправки списка товаров - {send_stocks_response}')
+            logger.debug('send_stocks finished with exception')
+            return None
+
+        logger.debug('send_stocks finished')
+        return send_stocks_response
