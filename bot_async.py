@@ -2,12 +2,15 @@
 Бот синхронизации склада Бифит-кассы со складами маркетплэйсов.
 """
 import asyncio
+import threading
 
+import uvicorn
 # from logger import logger
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 from Clases.BifitApi.BifitSession import BifitSession
+from fastapi_app.app import app
 from methods import get_markets_products, parse_calculation, get_write_off_msg, products_write_off, \
     goods_list_to_csv_str
 from methods_async import *
@@ -123,7 +126,7 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Нет товаров для отправки.")
 
 
-def main() -> None:
+async def main_async() -> None:
     """Старт бота"""
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(BOT_TOKEN).build()
@@ -137,8 +140,23 @@ def main() -> None:
     # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
     # Run the bot until the user presses Ctrl-C
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+
+    # Ожидаем завершения работы бота
+    await asyncio.Event().wait()
+
+
+def main() -> None:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main_async())
 
 
 if __name__ == "__main__":
-    main()
+    bot_thread = threading.Thread(target=main)
+    bot_thread.start()
+
+    uvicorn.run(app, host="127.0.0.1", port=8000)
