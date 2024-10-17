@@ -171,17 +171,24 @@ class BifitSession(Request):
         org = await self.org
         trade_obj = await self.trade_obj
 
+
         goods_list_request = GoodsListReq(
             token=token,
             org_id=org.id,
             trade_obj_id=trade_obj.id
         )
         goods_list_response = await goods_list_request.send_post_async()
+
         if 'error' in goods_list_response:
             logger.error(f'Ошибка на этапе запроса списка товаров - {goods_list_response}')
             return None
         try:
-            products = {Good(Goods(item['goods']), Nomenclature(item['nomenclature'])) for item in goods_list_response}
+            products = set()
+            for item in goods_list_response:
+                product = Good(Goods(item['goods']), Nomenclature(item['nomenclature']))
+                products.add(product)
+
+            # products = {Good(Goods(item['goods']), Nomenclature(item['nomenclature'])) for item in goods_list_response}
             logger.debug('get_bifit_products_set_async finished smoothly')
             return products
         except KeyError as e:
