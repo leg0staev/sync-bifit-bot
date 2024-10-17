@@ -73,7 +73,7 @@ def get_products_for_yml(products_set: set[Good]) -> set[Good]:
             # print(markets)
             if "yab" in markets:
                 pass
-        except AttributeError:S
+        except AttributeError:
             continue
     ...
 
