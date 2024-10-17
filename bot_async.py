@@ -2,9 +2,10 @@
 Бот синхронизации склада Бифит-кассы со складами маркетплэйсов.
 """
 import asyncio
+import multiprocessing
 import threading
-import uvicorn
 
+import uvicorn
 # from logger import logger
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
@@ -149,14 +150,27 @@ async def main_async() -> None:
     await asyncio.Event().wait()
 
 
-def main() -> None:
+def main_bot() -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(main_async())
 
 
-if __name__ == "__main__":
-    bot_thread = threading.Thread(target=main)
-    bot_thread.start()
-
+def run_uvicorn() -> None:
     uvicorn.run(app, host="127.0.0.1", port=8000)
+
+
+if __name__ == "__main__":
+    # bot_thread = threading.Thread(target=main)
+    # bot_thread.start()
+    #
+    # uvicorn.run(app, host="127.0.0.1", port=8000)
+
+    uvicorn_process = multiprocessing.Process(target=run_uvicorn)
+    uvicorn_process.start()
+
+    bot_process = multiprocessing.Process(target=main_bot)
+    bot_process.start()
+
+    bot_process.join()
+    uvicorn_process.join()
