@@ -82,16 +82,18 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
-    goods_set = await bifit_session.get_bifit_products_set_async()
-
-    if goods_set is None:
+    try:
+        ya_goods, ali_goods, vk_goods, ozon_goods = await bifit_session.get_bifit_products_set_async()
+    except Exception as e:
         await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
                                         f" тапни /sync чтобы попробовать еще раз")
         return None
 
+    if goods_set is None:
+        pass
+
     await update.message.reply_text("получил товары из бифит")
 
-    ya_goods, ali_goods, vk_goods, ozon_goods = get_markets_products(goods_set)
 
     coroutines = []
 

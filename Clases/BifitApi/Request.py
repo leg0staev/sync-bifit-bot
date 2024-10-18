@@ -5,6 +5,8 @@ import aiohttp
 import requests
 
 from logger import logger
+from Exceptions.ResponseContentException import ResponseContentException
+from Exceptions.ResponseStatusException import ResponseStatusException
 
 
 class Request:

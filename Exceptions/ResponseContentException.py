@@ -1,0 +1,2 @@
+class ResponseContentException(Exception):
+    pass
