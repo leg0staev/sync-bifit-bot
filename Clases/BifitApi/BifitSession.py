@@ -121,11 +121,11 @@ class BifitSession(Request):
 
         try:
             expires_in = float(response['expires_in'])
-            logger.debug('Достал время жизни токена из ответа сервера')
-            self.expiration_time = time.time() + expires_in
         except (KeyError, ValueError):
             logger.error('Отсутствует или некорректное значение expires_in в ответе сервера - %s', response)
-
+        else:
+            logger.debug('Достал время жизни токена из ответа сервера')
+            self.expiration_time = time.time() + expires_in
     async def get_first_bifit_org_async(self) -> None:
         """Получает первую организацию из списка Бифит-кассы (у меня она одна)"""
         logger.debug('get_first_bifit_org_async started')
@@ -137,11 +137,12 @@ class BifitSession(Request):
         else:
             try:
                 org_list = [Organization(org) for org in org_list_response]
-                self.organisation = org_list[0]
-                logger.debug('get_bifit_org_list_async finished smoothly')
             except KeyError as e:
                 logger.error(f'Ошибка формирования списка организаций - {e}')
                 logger.debug('get_bifit_org_list_async finished with exception')
+            else:
+                self.organisation = org_list[0]
+                logger.debug('get_bifit_org_list_async finished smoothly')
 
     async def get_first_bifit_trade_obj_async(self) -> None:
         """Получает первый торговый объект из списка Бифит-кассы (у меня он один)"""
@@ -156,11 +157,13 @@ class BifitSession(Request):
         else:
             try:
                 trade_obj_list = [TradeObject(obj) for obj in trade_obj_list_response]
-                self.trade_object = trade_obj_list[0]
-                logger.debug('get_bifit_org_list_async finished smoothly')
             except KeyError as e:
                 logger.error(f'Ошибка формирования списка торговых объектов - {e}')
                 logger.debug('get_bifit_org_list_async finished with exception')
+            else:
+                self.trade_object = trade_obj_list[0]
+                logger.debug('get_bifit_org_list_async finished smoothly')
+
 
     async def get_bifit_products_set_async(self) -> tuple[dict, dict, dict, dict]:
         """получает список всех товаров из склада Бифит-кассы"""
@@ -191,7 +194,10 @@ class BifitSession(Request):
                 products.add(product)
                 try:
                     markets: list[str] = product.nomenclature.vendor_code.split("-")
-                    # print(markets)
+                except AttributeError:
+                    # print(f"Ошибка: товар {product.get_name()}")
+                    continue
+                else:
                     if "ya" in markets:
                         ya_goods[product.nomenclature.barcode] = product.goods.quantity
                     if "oz" in markets:
@@ -202,9 +208,7 @@ class BifitSession(Request):
                         pass
                     if "vk" in markets:
                         vk_goods[product.nomenclature.barcode] = product.goods.quantity
-                except AttributeError:
-                    # print(f"Ошибка: товар {product.get_name()}")
-                    continue
+
             logger.debug('get_bifit_products_set_async finished smoothly')
             return ya_goods, ali_goods, vk_goods, ozon_goods
         except KeyError as e:
