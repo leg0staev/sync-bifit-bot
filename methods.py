@@ -37,7 +37,7 @@ def get_bifit_products_list(token: str, org_id: str, obj_id: str) -> list[Good]:
     return products
 
 
-def get_markets_products(products_set: set[Good]) -> tuple[dict, dict, dict, dict]:
+def get_markets_products(products_set: set[Good]) -> tuple:
     logger.debug('get_markets_products started')
 
     ya_goods: dict[str:int] = {}

@@ -9,13 +9,15 @@ import uvicorn
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
+from Exceptions.ResponseContentException import ResponseContentException
+from Exceptions.ResponseStatusException import ResponseStatusException
+from bifit_session import bifit_session
 from fastapi_app.app import app
-from methods import get_markets_products, parse_calculation, get_write_off_msg, products_write_off, \
+from methods import parse_calculation, get_write_off_msg, products_write_off, \
     goods_list_to_csv_str
 from methods_async import *
-from bifit_session import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
-    OZON_CLIENT_ID, OZON_ADMIN_KEY, USERNAME, PASSWORD, BOT_TOKEN
+    OZON_CLIENT_ID, OZON_ADMIN_KEY, BOT_TOKEN
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -83,17 +85,20 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
     try:
-        ya_goods, ali_goods, vk_goods, ozon_goods = await bifit_session.get_bifit_products_set_async()
-    except Exception as e:
-        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
+        ya_goods, ali_goods, vk_goods, ozon_goods, yab_products = await bifit_session.get_bifit_products_set_async()
+    except ResponseStatusException:
+        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка статуса сервера."
+                                        f" тапни /sync чтобы попробовать еще раз")
+        return None
+    except ResponseContentException:
+        await update.message.reply_text(f"не получил список товаров от Бифит. Неожиданный ответ сервера."
                                         f" тапни /sync чтобы попробовать еще раз")
         return None
 
-    if goods_set is None:
+    if yab_products is None:
         pass
 
     await update.message.reply_text("получил товары из бифит")
-
 
     coroutines = []
 

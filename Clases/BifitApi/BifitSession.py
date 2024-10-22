@@ -1,6 +1,6 @@
 import time
-from typing import Tuple, Dict, Any
-
+# from Exceptions.ResponseStatusException import ResponseStatusException
+# from Exceptions.ResponseContentException import ResponseContentException
 from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Goods import Goods
 from Clases.BifitApi.GoodsListReq import GoodsListReq
@@ -126,6 +126,7 @@ class BifitSession(Request):
         else:
             logger.debug('Достал время жизни токена из ответа сервера')
             self.expiration_time = time.time() + expires_in
+
     async def get_first_bifit_org_async(self) -> None:
         """Получает первую организацию из списка Бифит-кассы (у меня она одна)"""
         logger.debug('get_first_bifit_org_async started')
@@ -164,14 +165,14 @@ class BifitSession(Request):
                 self.trade_object = trade_obj_list[0]
                 logger.debug('get_bifit_org_list_async finished smoothly')
 
-
-    async def get_bifit_products_set_async(self) -> tuple[dict, dict, dict, dict]:
+    async def get_bifit_products_set_async(self) -> tuple[dict, dict, dict, dict, set]:
         """получает список всех товаров из склада Бифит-кассы"""
         logger.debug('get_bifit_products_set_async started')
 
         token = await self.token
         org = await self.org
         trade_obj = await self.trade_obj
+
         products = set()
         ya_goods: dict[str:int] = {}
         ali_goods: dict[str:int] = {}
@@ -187,7 +188,7 @@ class BifitSession(Request):
 
         if 'error' in goods_list_response:
             logger.error(f'Ошибка на этапе запроса списка товаров - {goods_list_response}')
-            raise Exception(f"Ошибка на этапе запроса списка товаров - {goods_list_response}")
+            raise ResponseStatusException(goods_list_response.get('error'))
         try:
             for item in goods_list_response:
                 product = Good(Goods(item['goods']), Nomenclature(item['nomenclature']))
@@ -208,13 +209,15 @@ class BifitSession(Request):
                         pass
                     if "vk" in markets:
                         vk_goods[product.nomenclature.barcode] = product.goods.quantity
+                    if "yab" in markets:
+                        products.add(item)
 
             logger.debug('get_bifit_products_set_async finished smoothly')
-            return ya_goods, ali_goods, vk_goods, ozon_goods
+            return ya_goods, ali_goods, vk_goods, ozon_goods, products
         except KeyError as e:
             logger.error(f'Ошибка формирования множества товаров - {e}')
             logger.debug('get_bifit_products_set_async finished with exception')
-            raise Exception(f"Ошибка формирования множества товаров - {e}")
+            raise ResponseContentException(goods_list_response)
 
     async def send_csv_stocks(self, stocks_csv_str: str) -> dict[str, str] | None:
         """Отправляет CSV строку с остатками"""
