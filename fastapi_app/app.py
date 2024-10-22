@@ -13,7 +13,7 @@ async def read_root():
 
 @app.get("/yml")
 async def get_yml():
-    products_set = await bifit_session.get_bifit_products_set_async()
+    products_set = await bifit_session.get_bifit_products_set_async()[4]
     content = """<?xml version="1.0" encoding="UTF-8"?>
 <yml_catalog date="2020-11-22T14:37:38+03:00">
     <shop>
@@ -21,5 +21,7 @@ async def get_yml():
         <company>pronogti.store</company>
         <currencies>
             <currency id="RUR" rate="1"/>
-        </currencies>"""
+        </currencies>
+        <categories>
+        </categories>"""
     return Response(content=content, media_type="application/xml")

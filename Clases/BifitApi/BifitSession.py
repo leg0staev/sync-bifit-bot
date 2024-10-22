@@ -1,6 +1,5 @@
 import time
-# from Exceptions.ResponseStatusException import ResponseStatusException
-# from Exceptions.ResponseContentException import ResponseContentException
+
 from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Goods import Goods
 from Clases.BifitApi.GoodsListReq import GoodsListReq
@@ -165,7 +164,7 @@ class BifitSession(Request):
                 self.trade_object = trade_obj_list[0]
                 logger.debug('get_bifit_org_list_async finished smoothly')
 
-    async def get_bifit_products_set_async(self) -> tuple[dict, dict, dict, dict, set]:
+    async def get_bifit_products_set_async(self) -> tuple[dict, dict, dict, dict, dict, set]:
         """получает список всех товаров из склада Бифит-кассы"""
         logger.debug('get_bifit_products_set_async started')
 
@@ -173,11 +172,12 @@ class BifitSession(Request):
         org = await self.org
         trade_obj = await self.trade_obj
 
-        products = set()
+        products: set[Good] = set()
         ya_goods: dict[str:int] = {}
         ali_goods: dict[str:int] = {}
         vk_goods: dict[str:int] = {}
         ozon_goods: dict[str:int] = {}
+        yab_goods = dict()
 
         goods_list_request = GoodsListReq(
             token=token,
@@ -210,10 +210,10 @@ class BifitSession(Request):
                     if "vk" in markets:
                         vk_goods[product.nomenclature.barcode] = product.goods.quantity
                     if "yab" in markets:
-                        products.add(item)
+                        ...
 
             logger.debug('get_bifit_products_set_async finished smoothly')
-            return ya_goods, ali_goods, vk_goods, ozon_goods, products
+            return ya_goods, ali_goods, vk_goods, ozon_goods, yab_goods, products
         except KeyError as e:
             logger.error(f'Ошибка формирования множества товаров - {e}')
             logger.debug('get_bifit_products_set_async finished with exception')

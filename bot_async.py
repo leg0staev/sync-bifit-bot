@@ -50,7 +50,7 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text(message)
     await update.message.reply_text("сейчас запрошу актуальные остатки из Бифит")
-    goods_set = await bifit_session.get_bifit_products_set_async()
+    *_, goods_set = await bifit_session.get_bifit_products_set_async()
     if goods_set is None:
         await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
                                         f" тапни /sync чтобы попробовать еще раз")
@@ -85,7 +85,7 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
     try:
-        ya_goods, ali_goods, vk_goods, ozon_goods, yab_products = await bifit_session.get_bifit_products_set_async()
+        ya_goods, ali_goods, vk_goods, ozon_goods, *_ = await bifit_session.get_bifit_products_set_async()
     except ResponseStatusException:
         await update.message.reply_text(f"не получил список товаров от Бифит. ошибка статуса сервера."
                                         f" тапни /sync чтобы попробовать еще раз")
@@ -94,9 +94,6 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"не получил список товаров от Бифит. Неожиданный ответ сервера."
                                         f" тапни /sync чтобы попробовать еще раз")
         return None
-
-    if yab_products is None:
-        pass
 
     await update.message.reply_text("получил товары из бифит")
 
