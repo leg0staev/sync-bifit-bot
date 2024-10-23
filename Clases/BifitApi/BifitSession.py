@@ -256,7 +256,8 @@ class BifitSession(Request):
         token = await self.token
 
         parent_noms_request = ParentNomenclaturesReq(token, nomenclature_id)
-        logger.debug('сформировал класс запроса родительских номенклатур. Отправляю запрос')
+        logger.debug(f'сформировал класс запроса родительских номенклатур для товара c id{nomenclature_id}.'
+                     ' Отправляю запрос')
         parent_noms_response = await parent_noms_request.send_post_async()
         logger.debug(f'ответ сервера {parent_noms_response}')
         if 'error' in parent_noms_response:
