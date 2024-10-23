@@ -214,7 +214,7 @@ class BifitSession(Request):
                     if "vk" in markets:
                         vk_goods[product.nomenclature.barcode] = product.goods.quantity
                     if "yab" in markets:
-                        yab_goods.add(item)
+                        yab_goods.add(product)
 
             logger.debug('get_bifit_products_set_async finished smoothly')
             return ya_goods, ali_goods, vk_goods, ozon_goods, yab_goods, products
