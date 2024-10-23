@@ -5,6 +5,7 @@ from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 from Clases.ApiMarketplaces.Vk.VkApiAsync import VkApiAsync
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
 from Clases.ApiMarketplaces.Ya.YAapiAsync import YAapiAsync
+from Clases.BifitApi.Good import Good
 from logger import logger
 
 
@@ -81,3 +82,7 @@ async def send_to_ali_async(ali_token: str, ali_goods_dict: dict[str:int]) -> di
     if err:
         return err
     return await ali_api.send_remains_async()
+
+
+async def get_yab_categories_dict(goods_set: set[Good]):
+    ...

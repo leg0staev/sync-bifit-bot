@@ -65,16 +65,9 @@ def get_markets_products(products_set: set[Good]) -> tuple:
     return ya_goods, ali_goods, vk_goods, ozon_goods
 
 
-def get_products_for_yml(products_set: set[Good]) -> set[Good]:
-    logger.debug('get_products_for_yml started')
-    for product in products_set:
-        try:
-            markets: list[str] = product.nomenclature.vendor_code.split("-")
-            # print(markets)
-            if "yab" in markets:
-                pass
-        except AttributeError:
-            continue
+def get_yab_categories(goods: set[Good]) -> tuple:
+    logger.debug('get_yab_categories started')
+    nomenclatures = (good.nomenclature.id for good in goods)
     ...
 
 
