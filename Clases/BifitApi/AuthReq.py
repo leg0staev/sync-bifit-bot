@@ -4,7 +4,7 @@ from Clases.BifitApi.Request import Request
 class AuthReq(Request):
     def __init__(self, username, password):
         super().__init__()
-        self.url = 'https://kassa.bifit.com/cashdesk-api/v1/oauth/token'
+        self.url = f'{Request.BIFIT_API_URL}/oauth/token'
 
         self.body = {"username": username,
                      "password": password,

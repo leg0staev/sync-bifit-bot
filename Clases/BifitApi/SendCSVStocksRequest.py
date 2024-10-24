@@ -7,7 +7,7 @@ class SendCSVStocksRequest(Request):
     def __init__(self, token: str, org_id: str, csv_str: str) -> None:
         super().__init__()
 
-        self.url = 'https://kassa.bifit.com/cashdesk-api/v1/protected/goods/csv/upload'
+        self.url = f'{Request.BIFIT_API_URL}/protected/goods/csv/upload'
 
         self.headers = {
             'Authorization': f'Bearer {token}',

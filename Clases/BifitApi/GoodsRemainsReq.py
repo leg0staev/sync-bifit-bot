@@ -8,7 +8,7 @@ class GoodsRemainsReq(Request):
                  trade_obj_id):
         super().__init__()
 
-        self.url = 'https://kassa.bifit.com/cashdesk-api/v1/protected/goods/quantity'
+        self.url = f'{Request.BIFIT_API_URL}/protected/goods/quantity'
 
         self.headers = {
             'Content-Type': 'application/json',

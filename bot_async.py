@@ -3,27 +3,26 @@
 """
 import asyncio
 import multiprocessing
+import threading
 
 import uvicorn
 # from logger import logger
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
-
+from Clases.BifitApi.BifitSession import BifitSession
 from Exceptions.ResponseContentException import ResponseContentException
 from Exceptions.ResponseStatusException import ResponseStatusException
-from bifit_session import bifit_session
 from fastapi_app.app import app
 from methods import parse_calculation, get_write_off_msg, products_write_off, \
     goods_list_to_csv_str
 from methods_async import *
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
-    OZON_CLIENT_ID, OZON_ADMIN_KEY, BOT_TOKEN
+    OZON_CLIENT_ID, OZON_ADMIN_KEY, BOT_TOKEN, USERNAME, PASSWORD
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """старт бота, инициализация, получение токена и данных по организации"""
     logger.debug("Старт бота, иницализация")
-    await bifit_session.initialize()
     await update.message.reply_text("tap /sync")
     logger.debug("Старт бота, иницализация - успех")
 
@@ -151,27 +150,24 @@ async def main_async() -> None:
     await asyncio.Event().wait()
 
 
-def main_bot() -> None:
+def run_uvicorn():
+    uvicorn.run(app, host="127.0.0.1", port=8000)
+
+
+def main_bot():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(main_async())
 
 
-def run_uvicorn() -> None:
-    uvicorn.run(app, host="127.0.0.1", port=8000)
-
-
 if __name__ == "__main__":
-    # bot_thread = threading.Thread(target=main)
-    # bot_thread.start()
-    #
-    # uvicorn.run(app, host="127.0.0.1", port=8000)
+    bifit_session = BifitSession(USERNAME, PASSWORD)
 
-    uvicorn_process = multiprocessing.Process(target=run_uvicorn)
-    uvicorn_process.start()
+    uvicorn_thread = threading.Thread(target=run_uvicorn)
+    uvicorn_thread.start()
 
-    bot_process = multiprocessing.Process(target=main_bot)
-    bot_process.start()
+    bot_thread = threading.Thread(target=main_bot)
+    bot_thread.start()
 
-    bot_process.join()
-    uvicorn_process.join()
+    uvicorn_thread.join()
+    bot_thread.join()

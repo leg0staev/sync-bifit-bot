@@ -5,13 +5,15 @@ from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Goods import Goods
 from Clases.BifitApi.GoodsListReq import GoodsListReq
 from Clases.BifitApi.Nomenclature import Nomenclature
+from Clases.BifitApi.Nomenclature import Nomenclature
 from Clases.BifitApi.OrgListReq import *
 from Clases.BifitApi.Organization import *
+from Clases.BifitApi.ParentNomenclaturesReq import *
 from Clases.BifitApi.SendCSVStocksRequest import SendCSVStocksRequest
 from Clases.BifitApi.TradeObjListReq import *
-from Clases.BifitApi.ParentNomenclaturesReq import *
 from Clases.BifitApi.TradeObject import TradeObject
-from Clases.BifitApi.Nomenclature import Nomenclature
+from Exceptions.ResponseContentException import ResponseContentException
+from Exceptions.ResponseStatusException import ResponseStatusException
 from logger import logger
 
 
@@ -57,6 +59,7 @@ class BifitSession(Request):
             await self.get_token_by_refresh_async()
         else:
             logger.debug('токен существует и он еще не истек')
+            logger.debug(f'токен в классе сессии {self.access_token}')
         return self.access_token
 
     @property
@@ -111,6 +114,7 @@ class BifitSession(Request):
         """Парсинг ответа на запрос токена."""
         try:
             self.access_token = response['access_token']
+            logger.debug(f'{self.access_token}')
             logger.debug('Достал токен из ответа сервера')
         except KeyError:
             logger.error('Отсутствует access_token в ответе сервера - %s', response)
@@ -250,35 +254,29 @@ class BifitSession(Request):
         return send_stocks_response
 
     async def get_parent_nomenclature_async(self, nomenclature_id) -> Nomenclature | None:
-        """Запрашивает родительскую номенклатуру для формирования категорий"""
         logger.debug('get_parent_nomenclatures_async started')
-
         token = await self.token
+        parent_noms_request = ParentNomenclaturesReq(token=token, nomenclature_id=nomenclature_id)
+        logger.debug(
+            f'сформировал класс запроса родительских номенклатур для товара c id{nomenclature_id}. Отправляю запрос')
 
-        parent_noms_request = ParentNomenclaturesReq(token, nomenclature_id)
-        logger.debug(f'сформировал класс запроса родительских номенклатур для товара c id{nomenclature_id}.'
-                     ' Отправляю запрос')
-        parent_noms_response = await parent_noms_request.send_post_async()
-        logger.debug(f'ответ сервера {parent_noms_response}')
-        if 'error' in parent_noms_response:
-            logger.error(f'Ошибка запроса родительских номенклатур - {parent_noms_response}')
-            logger.debug('get_parent_nomenclatures_async finished with exception')
-            return None
+        parent_noms_response = await parent_noms_request.send_get_async()
         parent_noms_list = tuple(Nomenclature(item) for item in parent_noms_response)
         logger.debug('get_parent_nomenclatures_async finished smoothly')
         return parent_noms_list[1]
 
-    async def get_yab_categories_dict(self, goods_set: set[Good]):
+    async def get_yab_categories_dict(self, goods_set: set[Good]) -> dict[str: int]:
         """Формирует словарь {'имя категории': id категории}"""
         logger.debug('get_yab_categories_dict started')
         coroutines = set()
         categories = dict()
 
         for good in goods_set:
-
             coroutines.add(self.get_parent_nomenclature_async(good.nomenclature.id))
 
         parent_nomenclatures = await asyncio.gather(*coroutines)
+        logger.debug(f'{parent_nomenclatures=}')
+        # parent_nomenclatures = tuple(Nomenclature(item) for item in parent_nomenclatures_str)
 
         for parent_nomenclature in parent_nomenclatures:
             categories[parent_nomenclature.name] = parent_nomenclature.id

@@ -5,8 +5,6 @@ import aiohttp
 import requests
 
 from logger import logger
-from Exceptions.ResponseContentException import ResponseContentException
-from Exceptions.ResponseStatusException import ResponseStatusException
 
 
 class Request:
@@ -19,6 +17,8 @@ class Request:
         body (dict): Тело запроса в формате JSON.
         query_params (dict): Параметры запроса.
     """
+
+    BIFIT_API_URL = 'https://kassa.bifit.com/cashdesk-api/v1'
 
     def __init__(self):
         self.url: Optional[str] = None
@@ -89,13 +89,19 @@ class Request:
                 response_json = await response.json()
                 return response_json
 
-            # Пример использования асинхронного метода
-            # async def main():
-            #     request = Request()
-            #     request.query_str = "http://example.com"
-            #     request.headers = {"Content-Type": "application/json"}
-            #     request.body = json.dumps({"key": "value"})
-            #     result = await request.send_post_async()
-            #     print(result)
+    async def send_get_async(self, url=None, headers=None, params=None) -> Dict[str, str]:
+        url = url or self.url
+        headers = headers or self.headers
+        logger.debug(f'Sending GET request: {url=}, {headers=}, {params=}')
+        params = params or self.query_params
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url=url, headers=headers, params=params) as response:
+                logger.info(f'HTTP async Request: GET {url}, {response.status}')
+                try:
+                    response.raise_for_status()
+                except aiohttp.ClientResponseError as e:
+                    logger.error(f'REQUEST ERROR {e}')
+                    return {'error': str(e)}
+                response_json = await response.json()
+                return response_json
 
-            # asyncio.run(main())

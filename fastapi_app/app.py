@@ -2,7 +2,7 @@ from fastapi import FastAPI, Response
 from Clases.BifitApi.Good import Good
 
 from bifit_session import bifit_session
-from methods import get_yab_categories
+from logger import logger
 
 app = FastAPI()
 
@@ -14,14 +14,21 @@ async def read_root():
 
 @app.get("/yml")
 async def get_yml():
+    logger.debug(f'get_yml started')
     products_set_response = await bifit_session.get_bifit_products_set_async()
+
     products_set: set[Good] = products_set_response[4]
+
+    logger.debug(f'{products_set=}')
     category_dict = await bifit_session.get_yab_categories_dict(products_set)
 
-
     categories_content = ''
+    logger.debug(f'{categories_content=}')
+    for cat_name, cat_id in category_dict.items():
+        categories_content += f'<category id="{cat_id}">{cat_name}</category>\n'
 
-    content = """<?xml version="1.0" encoding="UTF-8"?>
+
+    content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <yml_catalog date="2020-11-22T14:37:38+03:00">
     <shop>
         <name>pronogti.store</name>
@@ -30,6 +37,7 @@ async def get_yml():
             <currency id="RUR" rate="1"/>
         </currencies>
         <categories>
+        {categories_content}
         </categories>
     </shop>
 </yml_catalog>"""

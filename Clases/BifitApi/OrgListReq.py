@@ -6,7 +6,7 @@ class OrgListReq(Request):
 
         super().__init__()
 
-        self.url = 'https://kassa.bifit.com/cashdesk-api/v1/protected/organizations/list/read_all'
+        self.url = f'{Request.BIFIT_API_URL}/protected/organizations/list/read_all'
         self.headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {token}'
