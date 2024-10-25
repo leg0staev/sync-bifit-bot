@@ -258,12 +258,24 @@ class BifitSession(Request):
         token = await self.token
         parent_noms_request = ParentNomenclaturesReq(token=token, nomenclature_id=nomenclature_id)
         logger.debug(
-            f'сформировал класс запроса родительских номенклатур для товара c id{nomenclature_id}. Отправляю запрос')
+            f'сформировал класс запроса родительских номенклатур для товара c id {nomenclature_id}. '
+            f'Отправляю запрос')
 
         parent_noms_response = await parent_noms_request.send_get_async()
-        parent_noms_list = tuple(Nomenclature(item) for item in parent_noms_response)
-        logger.debug('get_parent_nomenclatures_async finished smoothly')
-        return parent_noms_list[1]
+        if 'error' in parent_noms_response:
+            logger.error(f'Ошибка на этапе запроса родительских номенклатур - {parent_noms_response}')
+            logger.debug('send_stocks finished with exception')
+            raise ResponseStatusException(parent_noms_response.get('error'))
+        try:
+            parent_noms_list = tuple(Nomenclature(item) for item in parent_noms_response)
+        except KeyError as e:
+            logger.error(f'Ошибка формирования родительских номенклатур.'
+                         f'неожиданный ответ от сервера - {e}')
+            logger.debug('get_bifit_products_set_async finished with exception')
+            raise ResponseContentException(parent_noms_response)
+        else:
+            logger.debug('get_parent_nomenclatures_async finished smoothly')
+            return parent_noms_list[1]
 
     async def get_yab_categories_dict(self, goods_set: set[Good]) -> dict[str: int]:
         """Формирует словарь {'имя категории': id категории}"""
@@ -274,11 +286,17 @@ class BifitSession(Request):
         for good in goods_set:
             coroutines.add(self.get_parent_nomenclature_async(good.nomenclature.id))
 
-        parent_nomenclatures = await asyncio.gather(*coroutines)
-        logger.debug(f'{parent_nomenclatures=}')
-        # parent_nomenclatures = tuple(Nomenclature(item) for item in parent_nomenclatures_str)
+        try:
+            parent_nomenclatures = await asyncio.gather(*coroutines)
+        except ResponseContentException as e:
+            logger.debug(f'неожиданный ответ сервера {e} '
+                         f'не могу сформировать список номенклатур')
+        except ResponseStatusException as e:
+            logger.debug(f'плохой статус код {e} ')
+        else:
+            logger.debug(f'{parent_nomenclatures=}')
 
-        for parent_nomenclature in parent_nomenclatures:
-            categories[parent_nomenclature.name] = parent_nomenclature.id
-        logger.debug('get_yab_categories_dict finished smoothly')
-        return categories
+            for parent_nomenclature in parent_nomenclatures:
+                categories[parent_nomenclature.name] = parent_nomenclature.id
+            logger.debug('get_yab_categories_dict finished smoothly')
+            return categories
