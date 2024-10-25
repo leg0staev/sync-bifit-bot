@@ -4,10 +4,10 @@ from Clases.BifitApi.Request import *
 class SendCSVStocksRequest(Request):
     """Класс запроса на отправку остатков через CSV"""
 
-    def __init__(self, token: str, org_id: str, csv_str: str) -> None:
+    def __init__(self, url: str, token: str, org_id: str, csv_str: str) -> None:
         super().__init__()
 
-        self.url = f'{Request.BIFIT_API_URL}/protected/goods/csv/upload'
+        self.url = url
 
         self.headers = {
             'Authorization': f'Bearer {token}',

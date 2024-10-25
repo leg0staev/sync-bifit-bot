@@ -2,9 +2,6 @@
 Бот синхронизации склада Бифит-кассы со складами маркетплэйсов.
 """
 import asyncio
-import multiprocessing
-from multiprocessing import Process, Manager
-from Clases.BifitApi.BifitSessionManager import BifitSessionManager
 import threading
 
 import uvicorn
@@ -23,7 +20,7 @@ from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_T
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """старт бота, инициализация, получение токена и данных по организации"""
+    """Старт бота, инициализация, получение токена и данных по организации"""
     logger.debug("Старт бота, иницализация")
     await update.message.reply_text("tap /sync")
     logger.debug("Старт бота, иницализация - успех")
@@ -152,27 +149,24 @@ async def main_async() -> None:
     await asyncio.Event().wait()
 
 
-def main_bot() -> None:
+def run_uvicorn(bifit_session):
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)
+
+
+def main_bot(bifit_session):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(main_async())
 
 
-def run_uvicorn() -> None:
-    uvicorn.run(app, host="127.0.0.1", port=8000)
-
-
 if __name__ == "__main__":
-    # bot_thread = threading.Thread(target=main)
-    # bot_thread.start()
-    #
-    # uvicorn.run(app, host="127.0.0.1", port=8000)
 
-    uvicorn_process = multiprocessing.Process(target=run_uvicorn)
-    uvicorn_process.start()
+    uvicorn_thread = threading.Thread(target=run_uvicorn, args=(bifit_session,))
+    uvicorn_thread.start()
 
-    bot_process = multiprocessing.Process(target=main_bot)
-    bot_process.start()
+    bot_thread = threading.Thread(target=main_bot, args=(bifit_session,))
+    bot_thread.start()
 
-    bot_process.join()
-    uvicorn_process.join()
+    uvicorn_thread.join()
+    bot_thread.join()

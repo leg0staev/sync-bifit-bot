@@ -5,7 +5,6 @@ from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Goods import Goods
 from Clases.BifitApi.GoodsListReq import GoodsListReq
 from Clases.BifitApi.Nomenclature import Nomenclature
-from Clases.BifitApi.Nomenclature import Nomenclature
 from Clases.BifitApi.OrgListReq import *
 from Clases.BifitApi.Organization import *
 from Clases.BifitApi.ParentNomenclaturesReq import *
@@ -18,7 +17,16 @@ from logger import logger
 
 
 class BifitSession(Request):
-    AUTH_URL = 'https://kassa.bifit.com/cashdesk-api/v1/oauth/token'
+
+    BIFIT_API_URL = 'https://kassa.bifit.com/cashdesk-api/v1'
+    AUTH_URL = f'{BIFIT_API_URL}/oauth/token'
+    ORG_LIST_URL = f'{BIFIT_API_URL}/protected/organizations/list/read_all'
+    TRADE_OBJ_LIST_URL = f'{BIFIT_API_URL}/protected/trade_objects/list/read_all'
+    GOODS_LIST_URL = f'{BIFIT_API_URL}/protected/goods/list/read'
+    GOODS_QUANTITY_URL = f'{BIFIT_API_URL}/protected/goods/quantity'
+    SEND_CSV_URL = f'{BIFIT_API_URL}/protected/goods/csv/upload'
+    PARENT_NOM_URL = f'{BIFIT_API_URL}/protected/nomenclatures'
+
 
     __slots__ = (
         'username',
@@ -59,7 +67,6 @@ class BifitSession(Request):
             await self.get_token_by_refresh_async()
         else:
             logger.debug('токен существует и он еще не истек')
-            logger.debug(f'токен в классе сессии {self.access_token}')
         return self.access_token
 
     @property
@@ -114,7 +121,6 @@ class BifitSession(Request):
         """Парсинг ответа на запрос токена."""
         try:
             self.access_token = response['access_token']
-            logger.debug(f'{self.access_token}')
             logger.debug('Достал токен из ответа сервера')
         except KeyError:
             logger.error('Отсутствует access_token в ответе сервера - %s', response)
@@ -136,7 +142,7 @@ class BifitSession(Request):
     async def get_first_bifit_org_async(self) -> None:
         """Получает первую организацию из списка Бифит-кассы (у меня она одна)"""
         logger.debug('get_first_bifit_org_async started')
-        org_list_request = OrgListReq(token=await self.token)
+        org_list_request = OrgListReq(url=BifitSession.ORG_LIST_URL, token=await self.token)
         org_list_response = await org_list_request.send_post_async()
 
         if 'error' in org_list_response:
@@ -156,7 +162,11 @@ class BifitSession(Request):
         logger.debug('get_first_bifit_trade_obj_async started')
         if self.organisation is None:
             await self.get_first_bifit_org_async()
-        trade_obj_list_request = TradeObjListReq(token=await self.token, org_id=self.organisation.id)
+        trade_obj_list_request = TradeObjListReq(
+            url=BifitSession.TRADE_OBJ_LIST_URL,
+            token=await self.token,
+            org_id=self.organisation.id
+        )
         trade_obj_list_response = await trade_obj_list_request.send_post_async()
 
         if 'error' in trade_obj_list_response:
@@ -187,6 +197,7 @@ class BifitSession(Request):
         yab_goods: set[Good] = set()
 
         goods_list_request = GoodsListReq(
+            url=BifitSession.GOODS_LIST_URL,
             token=token,
             org_id=org.id,
             trade_obj_id=trade_obj.id
@@ -235,6 +246,7 @@ class BifitSession(Request):
         org = await self.org
 
         send_stocks_request = SendCSVStocksRequest(
+            url=BifitSession.SEND_CSV_URL,
             token=token,
             org_id=org.id,
             csv_str=stocks_csv_str
@@ -256,7 +268,11 @@ class BifitSession(Request):
     async def get_parent_nomenclature_async(self, nomenclature_id) -> Nomenclature | None:
         logger.debug('get_parent_nomenclatures_async started')
         token = await self.token
-        parent_noms_request = ParentNomenclaturesReq(token=token, nomenclature_id=nomenclature_id)
+        parent_noms_request = ParentNomenclaturesReq(
+            url=BifitSession.PARENT_NOM_URL,
+            token=token,
+            nomenclature_id=nomenclature_id
+        )
         logger.debug(
             f'сформировал класс запроса родительских номенклатур для товара c id {nomenclature_id}. '
             f'Отправляю запрос')

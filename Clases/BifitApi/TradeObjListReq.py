@@ -2,10 +2,11 @@ from Clases.BifitApi.Request import *
 
 
 class TradeObjListReq(Request):
-    def __init__(self, token: str, org_id: str) -> None:
+    """Класс запроса списка торговых объектов"""
+    def __init__(self, url: str, token: str, org_id: str) -> None:
         super().__init__()
 
-        self.url = f'https://kassa.bifit.com/cashdesk-api/v1/protected/trade_objects/list/read_all'
+        self.url = url
 
         self.headers = {
             'Content-Type': 'application/json',
@@ -16,6 +17,3 @@ class TradeObjListReq(Request):
             'organization_id': org_id,
             'return_all': 'True',
         }
-
-        # self.body = {"organization_id": f"{org_id}",
-        #              "return_all": "true"}

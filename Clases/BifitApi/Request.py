@@ -18,8 +18,6 @@ class Request:
         query_params (dict): Параметры запроса.
     """
 
-    BIFIT_API_URL = 'https://kassa.bifit.com/cashdesk-api/v1'
-
     def __init__(self):
         self.url: Optional[str] = None
         self.headers: Optional[Dict[str, str]] = None

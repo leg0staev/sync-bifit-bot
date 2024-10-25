@@ -2,11 +2,12 @@ from Clases.BifitApi.Request import *
 
 
 class OrgListReq(Request):
-    def __init__(self, token):
+    """Клас запроса списка организаций"""
+    def __init__(self, url: str, token: str) -> None:
 
         super().__init__()
 
-        self.url = f'{Request.BIFIT_API_URL}/protected/organizations/list/read_all'
+        self.url = url
         self.headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {token}'
