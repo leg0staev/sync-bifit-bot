@@ -1,5 +1,6 @@
 class Goods:
-    def __init__(self, data: str):
+    def __init__(self, data: dict) -> None:
+        """Класс товара"""
         self.trade_trade_object_id = data['tradeObjectId']
         self.nomenclature_id = data['nomenclatureId']
 

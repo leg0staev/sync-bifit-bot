@@ -1,4 +1,5 @@
 class TradeObject:
+	"""Класс торгового объекта Бифит-кассы"""
 	def __init__(self, data):
 		self.id = data['id']
 		self.created = data['created']

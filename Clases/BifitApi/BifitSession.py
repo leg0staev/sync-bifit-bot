@@ -307,8 +307,10 @@ class BifitSession(Request):
         except ResponseContentException as e:
             logger.debug(f'неожиданный ответ сервера {e} '
                          f'не могу сформировать список номенклатур')
+            return categories
         except ResponseStatusException as e:
             logger.debug(f'плохой статус код {e} ')
+            return categories
         else:
             logger.debug(f'{parent_nomenclatures=}')
 
@@ -316,3 +318,24 @@ class BifitSession(Request):
                 categories[parent_nomenclature.name] = parent_nomenclature.id
             logger.debug('get_yab_categories_dict finished smoothly')
             return categories
+
+    async def get_yab_goods(self, goods_set: set[Good]) -> dict[Good:Nomenclature]:
+        """Формирует словарь {Товар: Родительская номенклатура}"""
+
+        coroutines = list()
+
+        for good in goods_set:
+            coroutines.append(self.get_parent_nomenclature_async(good.nomenclature.id))
+
+        try:
+            parent_nomenclatures = await asyncio.gather(*coroutines)
+        except ResponseContentException as e:
+            logger.debug(f'неожиданный ответ сервера {e} '
+                         f'не могу сформировать список номенклатур')
+            return {}
+        except ResponseStatusException as e:
+            logger.debug(f'плохой статус код {e} ')
+            return {}
+        else:
+            logger.debug(f'{parent_nomenclatures=}')
+            return {good: parent_nomenclature for good, parent_nomenclature in zip(list(goods_set), coroutines)}

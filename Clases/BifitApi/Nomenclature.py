@@ -55,3 +55,9 @@ class Nomenclature:
         self.status = data["status"]
         self.all_barcodes = data["allBarcodes"]
         self.all_pictureIds = data["allPictureIds"]
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __eq__(self, other):
+        return isinstance(other, Nomenclature) and self.id == other.id

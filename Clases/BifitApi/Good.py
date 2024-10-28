@@ -4,9 +4,12 @@ from Clases.BifitApi.Nomenclature import *
 
 class Good():
     """Класс товара Бифит-кассы"""
-    def __init__(self, goods: Goods, nomenclature: Nomenclature):
+    def __init__(self, goods: Goods, nomenclature: Nomenclature) -> None:
         self.goods: Goods = goods
         self.nomenclature: Nomenclature = nomenclature
 
     def __hash__(self):
         return hash(self.nomenclature.id)
+
+    def __eq__(self, other):
+        return isinstance(other, Good) and self.nomenclature.id == other.nomenclature.id
