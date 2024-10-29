@@ -319,7 +319,7 @@ class BifitSession(Request):
 
         try:
             for item in contactors_list_response:
-                item = json.loads(item)
+                # item = json.loads(item)
                 contactors_dict[item.id] = Contactor(item)
         except KeyError as e:
             logger.error(f'Ошибка формирования перечня поставщиков.'
