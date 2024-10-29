@@ -338,4 +338,4 @@ class BifitSession(Request):
             return {}
         else:
             logger.debug(f'{parent_nomenclatures=}')
-            return {good: parent_nomenclature for good, parent_nomenclature in zip(goods_list, coroutines)}
+            return {good: parent_nomenclature for good, parent_nomenclature in zip(goods_list, parent_nomenclatures)}

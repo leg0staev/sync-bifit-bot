@@ -24,9 +24,7 @@ async def get_yml():
     products_set_response = await bifit_session.get_bifit_products_async()
 
     products_list: list[Good] = products_set_response[4]
-
-    category_dict = await bifit_session.get_yab_categories_dict(products_list)
-    products_dict: dict[Good:Nomenclature] = bifit_session.get_yab_goods(products_list)
+    products_dict: dict[Good:Nomenclature] = await bifit_session.get_yab_goods(products_list)
 
     categories_content = ''
     offers_content = ''
@@ -40,11 +38,9 @@ async def get_yml():
                 <categoryId>10</categoryId>
                 <param name="Цвет">белый</param>
                 <weight>3.6</weight>
-                <dimensions>20.1/20.551/22.5</dimensions>"""
+                <dimensions>20.1/20.551/22.5</dimensions>
+            </offer>"""
     logger.debug(f'{categories_content=}')
-
-
-
 
     content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <yml_catalog date="{current_time.isoformat()}">
@@ -55,23 +51,10 @@ async def get_yml():
             <currency id="RUR" rate="1"/>
         </currencies>
         <categories>
-        {categories_content}
+            {categories_content}
         </categories>
         <offers>
-            <offer id="9012">
-                <name>Мороженица Brand 3811</name>
-                <url>http://best.seller.ru/product_page.asp?pid=12345</url>
-                <price>8990</price>
-                <currencyId>RUR</currencyId>
-                <categoryId>10</categoryId>
-                <delivery>true</delivery>
-                <delivery-options>
-                    <option cost="300" days="1" order-before="18"/>
-                </delivery-options>
-                <param name="Цвет">белый</param>
-                <weight>3.6</weight>
-                <dimensions>20.1/20.551/22.5</dimensions>
-            </offer>
+            {offers_content}
         </offers>
     </shop>
 </yml_catalog>"""
