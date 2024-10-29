@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 
 
 from Clases.BifitApi.Good import Good
+from Clases.BifitApi.Nomenclature import Nomenclature
 
 from bifit_session import bifit_session
 from logger import logger
@@ -25,13 +26,23 @@ async def get_yml():
     products_list: list[Good] = products_set_response[4]
 
     category_dict = await bifit_session.get_yab_categories_dict(products_list)
+    products_dict: dict[Good:Nomenclature] = bifit_session.get_yab_goods(products_list)
 
     categories_content = ''
-    for cat_name, cat_id in category_dict.items():
-        categories_content += f'<category id="{cat_id}">{cat_name}</category>\n'
+    offers_content = ''
+
+    for product, nomenclature in products_dict.items():
+        categories_content += f'<category id="{nomenclature.id}">{nomenclature.name}</category>\n'
+        offers_content += f"""            <offer id="{product.nomenclature.id}">
+                <name>{product.nomenclature.name}</name>
+                <price>{product.nomenclature.selling_price}</price>
+                <currencyId>RUR</currencyId>
+                <categoryId>10</categoryId>
+                <param name="Цвет">белый</param>
+                <weight>3.6</weight>
+                <dimensions>20.1/20.551/22.5</dimensions>"""
     logger.debug(f'{categories_content=}')
 
-    offers_content = ''
 
 
 
