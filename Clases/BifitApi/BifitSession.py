@@ -294,7 +294,7 @@ class BifitSession(Request):
             logger.debug('get_parent_nomenclatures_async finished smoothly')
             return parent_noms_list[1]
 
-    async def get_vendor_async(self, vendors_id: list):
+    async def get_vendors_async(self, vendors_id: set):
         """Формирует словарь {'id поставщика': Поставщик}"""
         logger.debug('get_vendor_async started')
         token = await self.token

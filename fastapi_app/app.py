@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 
+from Clases.BifitApi.Contactor import Contactor
 from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Nomenclature import Nomenclature
 from bifit_session import bifit_session
@@ -23,7 +24,8 @@ async def get_yml():
     products_set_response = await bifit_session.get_bifit_products_async()
 
     products_list: list[Good] = products_set_response[4]
-    products_dict: dict[Good:Nomenclature] = await bifit_session.get_yab_goods(products_list)
+    products_dict: dict[Good, Nomenclature] = await bifit_session.get_yab_goods(products_list)
+    vendors_dict: dict[int, Contactor] = await bifit_session.get_vendors_async()
 
     categories_content = ''
     offers_content = ''
