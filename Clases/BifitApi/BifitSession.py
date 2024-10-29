@@ -1,7 +1,7 @@
 import asyncio
-import json
 import time
 
+from Clases.BifitApi.Contactor import Contactor
 from Clases.BifitApi.ContactorsRequest import ContactorsRequest
 from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Goods import Goods
@@ -13,7 +13,6 @@ from Clases.BifitApi.ParentNomenclaturesReq import *
 from Clases.BifitApi.SendCSVStocksRequest import SendCSVStocksRequest
 from Clases.BifitApi.TradeObjListReq import *
 from Clases.BifitApi.TradeObject import TradeObject
-from Clases.BifitApi.Contactor import Contactor
 from Exceptions.ResponseContentException import ResponseContentException
 from Exceptions.ResponseStatusException import ResponseStatusException
 from logger import logger
@@ -330,7 +329,6 @@ class BifitSession(Request):
         else:
             logger.debug('get_vendor_async finished smoothly')
             return contactors_dict
-
 
     async def get_yab_categories_dict(self, goods_list: list[Good]) -> dict[str, int]:
         """Формирует словарь {'имя категории': id категории}"""
