@@ -181,7 +181,7 @@ class BifitSession(Request):
                 self.trade_object = trade_obj_list[0]
                 logger.debug('get_bifit_org_list_async finished smoothly')
 
-    async def get_bifit_products_set_async(self) -> tuple[dict, dict, dict, dict, set, set]:
+    async def get_bifit_products_async(self) -> tuple[dict, dict, dict, dict, list, set]:
         """получает список всех товаров из склада Бифит-кассы"""
         logger.debug('get_bifit_products_set_async started')
 
@@ -194,7 +194,7 @@ class BifitSession(Request):
         ali_goods: dict[str:int] = {}
         vk_goods: dict[str:int] = {}
         ozon_goods: dict[str:int] = {}
-        yab_goods: set[Good] = set()
+        yab_goods: list[Good] = []
 
         goods_list_request = GoodsListReq(
             url=BifitSession.GOODS_LIST_URL,
@@ -229,7 +229,7 @@ class BifitSession(Request):
                     if "vk" in markets:
                         vk_goods[product.nomenclature.barcode] = product.goods.quantity
                     if "yab" in markets:
-                        yab_goods.add(product)
+                        yab_goods.append(product)
 
             logger.debug('get_bifit_products_set_async finished smoothly')
             return ya_goods, ali_goods, vk_goods, ozon_goods, yab_goods, products
@@ -293,13 +293,13 @@ class BifitSession(Request):
             logger.debug('get_parent_nomenclatures_async finished smoothly')
             return parent_noms_list[1]
 
-    async def get_yab_categories_dict(self, goods_set: set[Good]) -> dict[str: int]:
+    async def get_yab_categories_dict(self, goods_list: list[Good]) -> dict[str: int]:
         """Формирует словарь {'имя категории': id категории}"""
         logger.debug('get_yab_categories_dict started')
         coroutines = set()
         categories = dict()
 
-        for good in goods_set:
+        for good in goods_list:
             coroutines.add(self.get_parent_nomenclature_async(good.nomenclature.id))
 
         try:
@@ -319,12 +319,12 @@ class BifitSession(Request):
             logger.debug('get_yab_categories_dict finished smoothly')
             return categories
 
-    async def get_yab_goods(self, goods_set: set[Good]) -> dict[Good:Nomenclature]:
+    async def get_yab_goods(self, goods_list: list[Good]) -> dict[Good:Nomenclature]:
         """Формирует словарь {Товар: Родительская номенклатура}"""
 
         coroutines = list()
 
-        for good in goods_set:
+        for good in goods_list:
             coroutines.append(self.get_parent_nomenclature_async(good.nomenclature.id))
 
         try:
@@ -338,4 +338,4 @@ class BifitSession(Request):
             return {}
         else:
             logger.debug(f'{parent_nomenclatures=}')
-            return {good: parent_nomenclature for good, parent_nomenclature in zip(list(goods_set), coroutines)}
+            return {good: parent_nomenclature for good, parent_nomenclature in zip(goods_list, coroutines)}

@@ -20,11 +20,11 @@ async def get_yml():
     logger.debug(f'get_yml started')
     current_time = datetime.now(tz)
 
-    products_set_response = await bifit_session.get_bifit_products_set_async()
+    products_set_response = await bifit_session.get_bifit_products_async()
 
-    products_set: set[Good] = products_set_response[4]
+    products_list: list[Good] = products_set_response[4]
 
-    category_dict = await bifit_session.get_yab_categories_dict(products_set)
+    category_dict = await bifit_session.get_yab_categories_dict(products_list)
 
     categories_content = ''
     for cat_name, cat_id in category_dict.items():
