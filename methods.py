@@ -65,12 +65,6 @@ def get_markets_products(products_set: set[Good]) -> tuple:
     return ya_goods, ali_goods, vk_goods, ozon_goods
 
 
-def get_yab_categories(goods: set[Good]) -> tuple:
-    logger.debug('get_yab_categories started')
-    nomenclatures = (good.nomenclature.id for good in goods)
-    ...
-
-
 def parse_calculation(string: str) -> \
         (tuple[dict[str, tuple[str, int]], set[tuple[str, int]]], set[str] | tuple[None, None, None]):
     """парсит расчет"""

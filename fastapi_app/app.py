@@ -1,15 +1,14 @@
-from fastapi import FastAPI, Response
 from datetime import datetime, timezone, timedelta
-
 
 from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Nomenclature import Nomenclature
-
 from bifit_session import bifit_session
+from fastapi import FastAPI, Response
 from logger import logger
 
 app = FastAPI()
 tz = timezone(timedelta(hours=3))
+
 
 @app.get("/")
 async def read_root():
@@ -29,16 +28,25 @@ async def get_yml():
     categories_content = ''
     offers_content = ''
 
+    categories = set(products_dict.values())
+    for category in categories:
+        categories_content += f'<category id="{category.id}">{category.name}</category>\n'
+
     for product, nomenclature in products_dict.items():
-        categories_content += f'<category id="{nomenclature.id}">{nomenclature.name}</category>\n'
-        offers_content += f"""            <offer id="{product.nomenclature.id}">
+        available = 'true' if product.goods.quantity > 0 else 'false'
+        offers_content += f"""<offer id="{product.nomenclature.id}"  available="{available}">
                 <name>{product.nomenclature.name}</name>
                 <price>{product.nomenclature.selling_price}</price>
                 <currencyId>RUR</currencyId>
-                <categoryId>10</categoryId>
-                <param name="Цвет">белый</param>
-                <weight>3.6</weight>
-                <dimensions>20.1/20.551/22.5</dimensions>
+                <categoryId>{nomenclature.id}</categoryId>
+                <picture>URL</picture>
+                <delivery>true</delivery>
+                <pickup>true</pickup>
+                <description>
+                    <![CDATA[
+                        {product.nomenclature.description}
+                    ]]>
+                </description>
             </offer>"""
     logger.debug(f'{categories_content=}')
 
@@ -51,7 +59,7 @@ async def get_yml():
             <currency id="RUR" rate="1"/>
         </currencies>
         <categories>
-            {categories_content}
+            {categories_content.strip()}
         </categories>
         <offers>
             {offers_content}

@@ -1,8 +1,8 @@
-from Clases.BifitApi.Request import *
+from Clases.BifitApi.Request import Request
 
 
 class OrgListReq(Request):
-    """Клас запроса списка организаций"""
+    """Класс запроса списка организаций"""
     def __init__(self, url: str, token: str) -> None:
 
         super().__init__()
