@@ -23,40 +23,46 @@ async def get_yml():
 
     products_set_response = await bifit_session.get_bifit_products_async()
 
-    products_list: list[Good] = products_set_response[4]
-    products_dict: dict[Good, Nomenclature] = await bifit_session.get_yab_goods(products_list)
-    vendors_dict: dict[int, Contactor] = await bifit_session.get_vendors_async()
+    yab_products_list = await bifit_session.get_yab_goods(products_set_response[4])
 
     categories_content = ''
     offers_content = ''
 
-    categories = set(products_dict.values())
+    categories = set()
+
+    for item in yab_products_list:
+        product = item.get('good')
+        vendor = item.get('vendor')
+        category = item.get('parent_nomenclature')
+
+        categories.add(category)
+
+        available = 'true' if product.goods.quantity > 0 else 'false'
+
+        offers_content += f"""<offer id="{product.nomenclature.id}"  available="{available}">
+                    <name>{product.nomenclature.name}</name>
+                    <vendor>{vendor.short_name}</vendor>
+                    <price>{product.nomenclature.selling_price}</price>
+                    <currencyId>RUR</currencyId>
+                    <categoryId>{category.id}</categoryId>
+                    <picture>URL</picture>
+                    <pickup>true</pickup>
+                    <description>
+                        <![CDATA[
+                            {product.nomenclature.description}
+                        ]]>
+                    </description>
+                </offer>"""
+
     for category in categories:
         categories_content += f'<category id="{category.id}">{category.name}</category>\n'
-
-    for product, nomenclature in products_dict.items():
-        available = 'true' if product.goods.quantity > 0 else 'false'
-        offers_content += f"""<offer id="{product.nomenclature.id}"  available="{available}">
-                <name>{product.nomenclature.name}</name>
-                <price>{product.nomenclature.selling_price}</price>
-                <currencyId>RUR</currencyId>
-                <categoryId>{nomenclature.id}</categoryId>
-                <picture>URL</picture>
-                <delivery>true</delivery>
-                <pickup>true</pickup>
-                <description>
-                    <![CDATA[
-                        {product.nomenclature.description}
-                    ]]>
-                </description>
-            </offer>"""
-    logger.debug(f'{categories_content=}')
 
     content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <yml_catalog date="{current_time.isoformat()}">
     <shop>
         <name>pronogti.store</name>
         <company>pronogti.store</company>
+        <url>https://pronogti.store</url>
         <currencies>
             <currency id="RUR" rate="1"/>
         </currencies>

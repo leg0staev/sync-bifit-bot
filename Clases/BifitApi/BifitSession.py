@@ -294,7 +294,7 @@ class BifitSession(Request):
             logger.debug('get_parent_nomenclatures_async finished smoothly')
             return parent_noms_list[1]
 
-    async def get_vendors_async(self, vendors_id: set):
+    async def get_vendors_async(self, vendors_id: list[int]):
         """Формирует словарь {'id поставщика': Поставщик}"""
         logger.debug('get_vendor_async started')
         token = await self.token
@@ -320,7 +320,7 @@ class BifitSession(Request):
         try:
             for item in contactors_list_response:
                 # item = json.loads(item)
-                contactors_dict[item.id] = Contactor(item)
+                contactors_dict[item.get("id")] = Contactor(item)
         except KeyError as e:
             logger.error(f'Ошибка формирования перечня поставщиков.'
                          f'неожиданный ответ от сервера - {e}')
@@ -356,7 +356,7 @@ class BifitSession(Request):
             logger.debug('get_yab_categories_dict finished smoothly')
             return categories
 
-    async def get_yab_goods(self, goods_list: list[Good]) -> dict[Good, Nomenclature]:
+    async def get_yab_goods_old(self, goods_list: list[Good]) -> dict[Good, Nomenclature]:
         """Формирует словарь {Товар: Родительская номенклатура}"""
 
         coroutines = list()
@@ -377,24 +377,24 @@ class BifitSession(Request):
             logger.debug(f'{parent_nomenclatures=}')
             return {good: parent_nomenclature for good, parent_nomenclature in zip(goods_list, parent_nomenclatures)}
 
-    async def get_yab_goods2(self, goods_list: list[Good]) -> list[dict]:
-        """Формирует список словарей
-        {'good': Товар, 'parent_nomenclature': Родительская номенклатура, 'supplier': Поставщик}"""
+    async def get_yab_goods(self, goods_list: list[Good]) -> list[dict]:
+        """Формирует список словарей 
+        {'good': Товар, 'parent_nomenclature': Родительская номенклатура, 'vendor': Поставщик}"""
+        vendor_ids = list({product.nomenclature.contractor_id for product in goods_list})
         coroutines_nomenclatures = [self.get_parent_nomenclature_async(good.nomenclature.id) for good in goods_list]
-        coroutines_vendor = [self.get_vendor_async(good.nomenclature.contractor_id) for good in goods_list]
 
         try:
+            vendors_dict = await self.get_vendors_async(vendor_ids)
+            logger.debug('получил словарь {"id поставщика": Поставщик}\n' f'{vendors_dict=}')
             parent_nomenclatures = await asyncio.gather(*coroutines_nomenclatures)
-            suppliers = await asyncio.gather(*coroutines_vendor)
-        except ResponseContentException as e:
+            logger.debug(f'{parent_nomenclatures=}')
+        except (ResponseContentException, ResponseStatusException) as e:
             logger.debug(f'неожиданный ответ сервера {e} не могу сформировать список номенклатур и поставщиков')
             return []
-        except ResponseStatusException as e:
-            logger.debug(f'плохой статус код {e}')
-            return []
-        else:
-            logger.debug(f'{parent_nomenclatures=}, {suppliers=}')
-            return [
-                {'good': good, 'parent_nomenclature': parent_nomenclature, 'supplier': supplier}
-                for good, parent_nomenclature, supplier in zip(goods_list, parent_nomenclatures, suppliers)
-            ]
+
+        yab_goods = []
+        for good, parent_nomenclature in zip(goods_list, parent_nomenclatures):
+            vendor = vendors_dict.get(good.nomenclature.contractor_id)
+            yab_goods.append({'good': good, 'parent_nomenclature': parent_nomenclature, 'vendor': vendor})
+
+        return yab_goods
