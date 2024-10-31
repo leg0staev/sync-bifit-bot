@@ -2,25 +2,26 @@
 Бот синхронизации склада Бифит-кассы со складами маркетплэйсов.
 """
 import asyncio
+import threading
 
+import uvicorn
 # from logger import logger
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
-
-from Clases.BifitApi.BifitSession import BifitSession
-from methods import get_markets_products, parse_calculation, get_write_off_msg, products_write_off, \
+from bifit_session import bifit_session
+from Exceptions.ResponseContentException import ResponseContentException
+from Exceptions.ResponseStatusException import ResponseStatusException
+from fastapi_app.app import app
+from methods import parse_calculation, get_write_off_msg, products_write_off, \
     goods_list_to_csv_str
 from methods_async import *
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
-    OZON_CLIENT_ID, OZON_ADMIN_KEY, USERNAME, PASSWORD, BOT_TOKEN
-
-bifit_session = BifitSession(USERNAME, PASSWORD)
+    OZON_CLIENT_ID, OZON_ADMIN_KEY, BOT_TOKEN, USERNAME, PASSWORD
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """старт бота, инициализация, получение токена и данных по организации"""
+    """Старт бота, инициализация, получение токена и данных по организации"""
     logger.debug("Старт бота, иницализация")
-    await bifit_session.initialize()
     await update.message.reply_text("tap /sync")
     logger.debug("Старт бота, иницализация - успех")
 
@@ -47,7 +48,7 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text(message)
     await update.message.reply_text("сейчас запрошу актуальные остатки из Бифит")
-    goods_set = await bifit_session.get_bifit_products_set_async()
+    *_, goods_set = await bifit_session.get_bifit_products_async()
     if goods_set is None:
         await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
                                         f" тапни /sync чтобы попробовать еще раз")
@@ -81,16 +82,18 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
-    goods_set = await bifit_session.get_bifit_products_set_async()
-
-    if goods_set is None:
-        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка."
+    try:
+        ya_goods, ali_goods, vk_goods, ozon_goods, *_ = await bifit_session.get_bifit_products_async()
+    except ResponseStatusException:
+        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка статуса сервера."
+                                        f" тапни /sync чтобы попробовать еще раз")
+        return None
+    except ResponseContentException:
+        await update.message.reply_text(f"не получил список товаров от Бифит. Неожиданный ответ сервера."
                                         f" тапни /sync чтобы попробовать еще раз")
         return None
 
     await update.message.reply_text("получил товары из бифит")
-
-    ya_goods, ali_goods, vk_goods, ozon_goods = get_markets_products(goods_set)
 
     coroutines = []
 
@@ -123,7 +126,7 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Нет товаров для отправки.")
 
 
-def main() -> None:
+async def main_async() -> None:
     """Старт бота"""
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(BOT_TOKEN).build()
@@ -137,8 +140,33 @@ def main() -> None:
     # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
     # Run the bot until the user presses Ctrl-C
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+
+    # Ожидаем завершения работы бота
+    await asyncio.Event().wait()
+
+
+def run_uvicorn(bifit_session):
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+def main_bot(bifit_session):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main_async())
 
 
 if __name__ == "__main__":
-    main()
+
+    uvicorn_thread = threading.Thread(target=run_uvicorn, args=(bifit_session,))
+    uvicorn_thread.start()
+
+    bot_thread = threading.Thread(target=main_bot, args=(bifit_session,))
+    bot_thread.start()
+
+    uvicorn_thread.join()
+    bot_thread.join()

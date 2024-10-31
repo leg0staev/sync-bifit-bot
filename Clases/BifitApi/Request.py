@@ -18,12 +18,17 @@ class Request:
         query_params (dict): Параметры запроса.
     """
 
-    def __init__(self):
-        self.url: Optional[str] = None
-        self.headers: Optional[Dict[str, str]] = None
-        self.json: Optional[Dict[str, str]] = None
-        self.files: Optional[aiohttp.FormData] = None
-        self.query_params: Optional[Dict[str, str]] = None
+    def __init__(self,
+                 url: Optional[str] = None,
+                 headers: Optional[Dict[str, str]] = None,
+                 json_dict: Optional[Dict[str, str]] = None,
+                 files: Optional[aiohttp.FormData] = None,
+                 query_params: Optional[Dict[str, str]] = None):
+        self.url = url
+        self.headers = headers
+        self.json = json_dict
+        self.files = files
+        self.query_params = query_params
 
     def send_post(self) -> Dict[str, str]:
 
@@ -87,13 +92,19 @@ class Request:
                 response_json = await response.json()
                 return response_json
 
-            # Пример использования асинхронного метода
-            # async def main():
-            #     request = Request()
-            #     request.query_str = "http://example.com"
-            #     request.headers = {"Content-Type": "application/json"}
-            #     request.body = json.dumps({"key": "value"})
-            #     result = await request.send_post_async()
-            #     print(result)
+    async def send_get_async(self, url=None, headers=None, params=None) -> Dict[str, str]:
+        url = url or self.url
+        headers = headers or self.headers
+        logger.debug(f'Sending GET request: {url=}, {headers=}, {params=}')
+        params = params or self.query_params
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url=url, headers=headers, params=params) as response:
+                logger.info(f'HTTP async Request: GET {url}, {response.status}')
+                try:
+                    response.raise_for_status()
+                except aiohttp.ClientResponseError as e:
+                    logger.error(f'REQUEST ERROR {e}')
+                    return {'error': str(e)}
+                response_json = await response.json()
+                return response_json
 
-            # asyncio.run(main())

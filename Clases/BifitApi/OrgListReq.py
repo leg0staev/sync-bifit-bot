@@ -1,12 +1,13 @@
-from Clases.BifitApi.Request import *
+from Clases.BifitApi.Request import Request
 
 
 class OrgListReq(Request):
-    def __init__(self, token):
+    """Класс запроса списка организаций"""
+    def __init__(self, url: str, token: str) -> None:
 
         super().__init__()
 
-        self.url = 'https://kassa.bifit.com/cashdesk-api/v1/protected/organizations/list/read_all'
+        self.url = url
         self.headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {token}'

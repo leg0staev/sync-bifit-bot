@@ -37,7 +37,7 @@ def get_bifit_products_list(token: str, org_id: str, obj_id: str) -> list[Good]:
     return products
 
 
-def get_markets_products(products_set: set[Good]) -> tuple[dict, dict, dict, dict]:
+def get_markets_products(products_set: set[Good]) -> tuple:
     logger.debug('get_markets_products started')
 
     ya_goods: dict[str:int] = {}
@@ -213,3 +213,7 @@ def send_to_ozon(ozon_admin_key: str, ozon_client_id: str, ozon_goods_dict: dict
     ozon_warehouses = [Warehouse(w) for w in ozon_api.get_warehouses()['result'] if w['status'] != "disabled"]
     ozon_send_remains_response = ozon_api.send_remains(ozon_products_dict, ozon_goods_dict, ozon_warehouses)
     return ozon_send_remains_response
+
+
+def form_name(name: str) -> str:
+    ...

@@ -2,18 +2,20 @@ from Clases.BifitApi.Request import Request
 
 
 class GoodsListReq(Request):
+    """Класс запроса списка всех товаров"""
     def __init__(self,
-                 token,
-                 org_id,
-                 trade_obj_id,
-                 with_zero='True',
-                 goods_type='POSITIVE,NEGATIVE,NULL'):
+                 url: str,
+                 token: str,
+                 org_id: str,
+                 trade_obj_id: str,
+                 with_zero: str = 'True',
+                 goods_type: str = 'POSITIVE,NEGATIVE,NULL') -> None:
         super().__init__()
         self.headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {token}'
         }
-        self.url = f'https://kassa.bifit.com/cashdesk-api/v1/protected/goods/list/read'
+        self.url = url
         self.query_params = {
             'organization_id': org_id,
             'with_zero': with_zero,

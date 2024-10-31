@@ -3,12 +3,13 @@ from Clases.BifitApi.Request import Request
 
 class GoodsRemainsReq(Request):
     def __init__(self,
+                 url,
                  token,
                  org_id,
                  trade_obj_id):
         super().__init__()
 
-        self.url = 'https://kassa.bifit.com/cashdesk-api/v1/protected/goods/quantity'
+        self.url = url
 
         self.headers = {
             'Content-Type': 'application/json',
