@@ -18,12 +18,17 @@ class Request:
         query_params (dict): Параметры запроса.
     """
 
-    def __init__(self):
-        self.url: Optional[str] = None
-        self.headers: Optional[Dict[str, str]] = None
-        self.json: Optional[Dict[str, str]] = None
-        self.files: Optional[aiohttp.FormData] = None
-        self.query_params: Optional[Dict[str, str]] = None
+    def __init__(self,
+                 url: Optional[str] = None,
+                 headers: Optional[Dict[str, str]] = None,
+                 json_dict: Optional[Dict[str, str]] = None,
+                 files: Optional[aiohttp.FormData] = None,
+                 query_params: Optional[Dict[str, str]] = None):
+        self.url = url
+        self.headers = headers
+        self.json = json_dict
+        self.files = files
+        self.query_params = query_params
 
     def send_post(self) -> Dict[str, str]:
 

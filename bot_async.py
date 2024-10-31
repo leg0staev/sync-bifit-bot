@@ -151,7 +151,7 @@ async def main_async() -> None:
 
 def run_uvicorn(bifit_session):
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
 def main_bot(bifit_session):

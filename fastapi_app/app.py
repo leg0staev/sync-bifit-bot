@@ -1,11 +1,10 @@
 from datetime import datetime, timezone, timedelta
 
-from Clases.BifitApi.Contactor import Contactor
-from Clases.BifitApi.Good import Good
-from Clases.BifitApi.Nomenclature import Nomenclature
-from bifit_session import bifit_session
 from fastapi import FastAPI, Response
+
+from bifit_session import bifit_session
 from logger import logger
+from methods_async import get_pic_url
 
 app = FastAPI()
 tz = timezone(timedelta(hours=3))
@@ -38,6 +37,7 @@ async def get_yml():
         categories.add(category)
 
         available = 'true' if product.goods.quantity > 0 else 'false'
+        pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name)
 
         offers_content += f"""<offer id="{product.nomenclature.id}"  available="{available}">
                     <name>{product.nomenclature.name}</name>
@@ -45,8 +45,7 @@ async def get_yml():
                     <price>{product.nomenclature.selling_price}</price>
                     <currencyId>RUR</currencyId>
                     <categoryId>{category.id}</categoryId>
-                    <picture>URL</picture>
-                    <pickup>true</pickup>
+                    <picture>{pic_url}</picture>
                     <description>
                         <![CDATA[
                             {product.nomenclature.description}
