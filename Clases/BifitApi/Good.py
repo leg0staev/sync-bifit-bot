@@ -13,3 +13,6 @@ class Good():
 
     def __eq__(self, other):
         return isinstance(other, Good) and self.nomenclature.id == other.nomenclature.id
+
+    def __str__(self):
+        return f'товар {self.nomenclature.name}'

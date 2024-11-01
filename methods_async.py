@@ -88,19 +88,22 @@ async def send_to_ali_async(ali_token: str, ali_goods_dict: dict[str:int]) -> di
     return await ali_api.send_remains_async()
 
 
-async def get_pic_url(pic_name: str, vendor_name: str) -> str:
+async def get_pic_url(pic_name: str, vendor_name: str, to_bot: bool = False) -> str:
+    """Формирует ссылку на изображение товара"""
     logger.debug('get_pic_url started')
     my_site_url = 'https://pronogti.store'
     vendor_name = slugify(vendor_name, 'uk')
     pic_name = slugify(pic_name, 'uk')
     pic_url = f'{my_site_url}/images/{vendor_name}/{pic_name}.jpg'
+    if to_bot:
+        return pic_url
     logger.debug('сформировал ссылку на картинку товара\n'
                  f'{pic_url=}. отправляю запрос')
     pic_request = Request(url=pic_url)
     pic_response = await pic_request.send_get_async()
     if 'error' in pic_response:
         logger.debug('ERROR ошибка при получении изображения\n'
-                     f'ставлю заглушку {my_site_url}/images/no-image.jpg'
+                     f'ставлю заглушку {my_site_url}/images/no-image.jpg\n'
                      'get_pic_url finished with exception')
         return f'{my_site_url}/images/no-image.jpg'
     logger.debug('ОК нашел картинку на сервере.\n'

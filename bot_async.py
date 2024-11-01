@@ -126,6 +126,8 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
+
     market_prod_dict = await bifit_session.get_bifit_prod_by_markers(("ya", "oz", "ali", "vk"))
 
     if market_prod_dict:
@@ -170,8 +172,19 @@ async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return None
 
 
-async def yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    ...
+async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Выводит в бот ожидаемые ссылки на картинки"""
+
+    products_response = await bifit_session.get_bifit_prod_by_markers(('yab',))
+
+    yab_products_list = await bifit_session.get_yab_goods(products_response.get('yab'))
+
+    for item in yab_products_list:
+        product = item.get('good')
+        vendor = item.get('vendor')
+
+        pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name, to_bot=True)
+        await update.message.reply_text(f"товар {str(product)}: картинка - {pic_url}")
 
 
 async def main_async() -> None:
@@ -181,7 +194,7 @@ async def main_async() -> None:
 
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler("start", start))
-    # application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("pic_links", get_yab_pic_names))
     application.add_handler(CommandHandler("sync", synchronization))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
     # on non command i.e message - echo the message on Telegram
