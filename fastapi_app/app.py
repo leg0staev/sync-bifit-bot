@@ -20,9 +20,9 @@ async def get_yml():
     logger.debug(f'get_yml started')
     current_time = datetime.now(tz)
 
-    products_set_response = await bifit_session.get_bifit_products_async()
+    products_response = await bifit_session.get_bifit_prod_by_markers(('yab',))
 
-    yab_products_list = await bifit_session.get_yab_goods(products_set_response[4])
+    yab_products_list = await bifit_session.get_yab_goods(products_response.get('yab'))
 
     categories_content = ''
     offers_content = ''

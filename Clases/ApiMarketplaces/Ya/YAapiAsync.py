@@ -26,6 +26,7 @@ class YAapiAsync(YAapi):
 
         async with aiohttp.ClientSession() as session:
             async with session.put(url, headers=headers, data=json.dumps(data)) as response:
+                logger.info(f'HTTP Request: PUT {url}, {response.status}')
                 try:
                     response.raise_for_status()
                 except aiohttp.ClientResponseError as e:
