@@ -183,7 +183,7 @@ class BifitSession(Request):
                 logger.debug('get_bifit_org_list_async finished smoothly')
 
     async def get_bifit_products_async(self) -> tuple[dict, dict, dict, dict, list, set]:
-        """получает список всех товаров из склада Бифит-кассы"""
+        """Получает список всех товаров из склада Бифит-кассы"""
         logger.debug('get_bifit_products_set_async started')
 
         token = await self.token
@@ -238,6 +238,69 @@ class BifitSession(Request):
             logger.error(f'Ошибка формирования множества товаров - {e}')
             logger.debug('get_bifit_products_set_async finished with exception')
             raise ResponseContentException(goods_list_response)
+
+    async def get_bifit_prod_by_markers(self, markers: tuple[str] = ()) -> None | set[Good] | dict[str, dict[str, int]]:
+        """Получает список всех товаров из склада Бифит-кассы по маркерам"""
+        logger.debug('get_bifit_prod_by_markers started')
+
+        # Получение токена и других необходимых данных
+        token = await self.token
+        org = await self.org
+        trade_obj = await self.trade_obj
+
+        all_products: set[Good] = set()
+        market_products: dict = {}
+
+        goods_list_request = GoodsListReq(
+            url=BifitSession.GOODS_LIST_URL,
+            token=token,
+            org_id=org.id,
+            trade_obj_id=trade_obj.id
+        )
+
+        logger.debug('Отправляю запрос на получение всех товаров склада Бифит-кассы')
+        goods_list_response = await goods_list_request.send_post_async()
+
+        if 'error' in goods_list_response:
+            logger.error(f'Ошибка на этапе запроса списка товаров - {goods_list_response}')
+            return None
+
+        logger.debug('товары получил. пробую прочитать')
+
+        try:
+            for item in goods_list_response:
+                try:
+                    product = Good(Goods(item['goods']), Nomenclature(item['nomenclature']))
+                except KeyError as e:
+                    logger.error(f'Неожиданный ответ сервера. Ошибка формирования товара - {e}')
+                    logger.debug('get_bifit_products_set_async finished with exception')
+                    return None
+
+                if markers:
+                    for marker in markers:
+                        try:
+                            markets: list[str] = product.nomenclature.vendor_code.split("-")
+                        except AttributeError:
+                            continue
+
+                        if marker in markets:
+                            if marker == 'yab':
+                                if marker not in market_products:
+                                    market_products[marker] = set()
+                                market_products[marker].add(product)
+                            else:
+                                if marker not in market_products:
+                                    market_products[marker] = {}
+                                market_products[marker][product.nomenclature.barcode] = product.goods.quantity
+                else:
+                    all_products.add(product)
+
+        except TypeError as e:
+            logger.error(f'Неожиданный ответ сервера - {e}')
+            return None
+
+        logger.debug('get_bifit_prod_by_markers finished smoothly')
+        return all_products or market_products
 
     async def send_csv_stocks(self, stocks_csv_str: str) -> dict[str, str] | None:
         """Отправляет CSV строку с остатками"""
@@ -377,13 +440,14 @@ class BifitSession(Request):
             logger.debug(f'{parent_nomenclatures=}')
             return {good: parent_nomenclature for good, parent_nomenclature in zip(goods_list, parent_nomenclatures)}
 
-    async def get_yab_goods(self, goods_list: list[Good]) -> list[dict]:
+    async def get_yab_goods(self, goods_set: set[Good]) -> list[dict]:
         """Формирует список словарей 
         {'good': Товар, 'parent_nomenclature': Родительская номенклатура, 'vendor': Поставщик}"""
-        vendor_ids = list({product.nomenclature.contractor_id for product in goods_list})
-        coroutines_nomenclatures = [self.get_parent_nomenclature_async(good.nomenclature.id) for good in goods_list]
+        vendor_ids = list({product.nomenclature.contractor_id for product in goods_set})
+        coroutines_nomenclatures = [self.get_parent_nomenclature_async(good.nomenclature.id) for good in goods_set]
 
         try:
+
             vendors_dict = await self.get_vendors_async(vendor_ids)
             logger.debug('получил словарь {"id поставщика": Поставщик}\n' f'{vendors_dict=}')
             parent_nomenclatures = await asyncio.gather(*coroutines_nomenclatures)
@@ -393,7 +457,7 @@ class BifitSession(Request):
             return []
 
         yab_goods = []
-        for good, parent_nomenclature in zip(goods_list, parent_nomenclatures):
+        for good, parent_nomenclature in zip(goods_set, parent_nomenclatures):
             vendor = vendors_dict.get(good.nomenclature.contractor_id)
             yab_goods.append({'good': good, 'parent_nomenclature': parent_nomenclature, 'vendor': vendor})
 

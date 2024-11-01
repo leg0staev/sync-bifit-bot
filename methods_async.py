@@ -24,11 +24,13 @@ async def send_to_yandex_async(ya_token: str,
     :param ya_goods_dict: словарь с SKU товаров и их количеством
     :return: словарь с ответом сервера, в случае с ошибки или пустой словарь, если ошибок нет
     """
+    logger.debug(f'send_to_yandex_async started')
     ya_api = YAapiAsync(ya_token, ya_campaign_id, ya_warehouse_id, goods_dict=ya_goods_dict)
     ya_send_remains_response = await ya_api.send_remains_async()
     if 'errors' in ya_send_remains_response:
         logger.error(f'ошибка на этапе отправки товаров в Яндекс - {ya_send_remains_response}')
         return ya_send_remains_response
+    logger.debug(f'send_to_yandex_async finished smoothly')
     return {}
 
 
