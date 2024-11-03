@@ -92,7 +92,7 @@ class Request:
                 response_json = await response.json()
                 return response_json
 
-    async def send_get_async(self, url=None, headers=None, params=None) -> Dict[str, str]:
+    async def send_get_async(self, url=None, headers=None, params=None) -> dict[str, bytes] | dict[str, str]:
         url = url or self.url
         headers = headers or self.headers
         logger.debug(f'Sending GET request: {url=}, {headers=}, {params=}')
@@ -105,6 +105,8 @@ class Request:
                 except aiohttp.ClientResponseError as e:
                     logger.error(f'REQUEST ERROR {e}')
                     return {'error': str(e)}
-                response_json = await response.json()
-                return response_json
+                if 'image' in response.headers.get('Content-Type', ''):
+                    image_data = await response.read()
+                    return {'image_data': image_data}
+                return await response.json()
 
