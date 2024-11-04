@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import FastAPI, Response
 
+from Clases.BifitApi.Contactor import Contactor
 from bifit_session import bifit_session
 from logger import logger
 from methods_async import get_pic_url
@@ -31,7 +32,7 @@ async def get_yml():
 
     for item in yab_products_list:
         product = item.get('good')
-        vendor = item.get('vendor')
+        vendor = item.get('vendor') or Contactor({'shortName': 'n0 vendor'})
         category = item.get('parent_nomenclature')
 
         categories.add(category)
