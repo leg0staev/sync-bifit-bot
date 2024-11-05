@@ -37,17 +37,19 @@ class BifitSession(Request):
         'refresh_token',
         'organisation',
         'trade_object',
+        'yml_str',
     )
 
-    def __init__(self, username, password) -> None:
+    def __init__(self, username: str, password: str) -> None:
         super().__init__()
-        self.username = username
-        self.password = password
-        self.access_token = None
-        self.expiration_time = None
-        self.refresh_token = None
-        self.organisation = None
-        self.trade_object = None
+        self.username: str = username
+        self.password: str = password
+        self.access_token: str | None = None
+        self.expiration_time: float | None = None
+        self.refresh_token: str | None = None
+        self.organisation: str | None = None
+        self.trade_object: str | None = None
+        self.yml_str: str | None = None
         logger.debug('создал класс сессии бифит-касса')
 
     async def initialize(self) -> None:
