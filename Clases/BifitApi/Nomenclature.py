@@ -1,6 +1,6 @@
 class Nomenclature:
 
-    def __init__(self, data) -> None:
+    def __init__(self, data: dict) -> None:
         self.id = data.get("id")
         self.organization_id = data.get("organizationId")
         self.external_id = data.get("externalId")
