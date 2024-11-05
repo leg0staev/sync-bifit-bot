@@ -4,5 +4,4 @@
 /.idea
 settings.py
 /logs
-Dockerfile
 sync-bot.tar
