@@ -102,7 +102,7 @@ async def get_pic_url(pic_name: str, vendor_name: str, to_bot: bool = False) -> 
     pic_request = Request(url=pic_url)
     pic_response = await pic_request.send_get_async()
     if 'error' in pic_response:
-        logger.debug('ERROR ошибка при получении изображения\n'
+        logger.error('ERROR ошибка при получении изображения\n'
                      f'ставлю заглушку {my_site_url}/images/no-image.jpg\n'
                      'get_pic_url finished with exception')
         return f'{my_site_url}/images/no-image.jpg'

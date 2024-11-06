@@ -187,6 +187,20 @@ async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await update.message.reply_text(f"товар {str(product)}: картинка - {pic_url}")
 
 
+async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запускает процесс обновления YML которая находится в сессии"""
+    await update.message.reply_text('Запускаю процесс обновления YML')
+    yml_update_errors = await bifit_session.get_yml_async()
+
+    if yml_update_errors:
+        message = ''
+        for product, error in yml_update_errors:
+            message += f'для товара {product} {error}'
+        await update.message.reply_text(message)
+    else:
+        await update.message.reply_text('YML обновлен без ошибок')
+
+
 async def main_async() -> None:
     """Старт бота"""
     # Create the Application and pass it your bot's token.
@@ -195,6 +209,7 @@ async def main_async() -> None:
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("pic_links", get_yab_pic_names))
+    application.add_handler(CommandHandler("get_yml", get_new_yml))
     application.add_handler(CommandHandler("sync", synchronization))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
     # on non command i.e message - echo the message on Telegram
@@ -210,6 +225,10 @@ async def main_async() -> None:
     await asyncio.Event().wait()
 
 
+async def initialize_session(session):
+    await session.initialize()
+
+
 def run_uvicorn(bifit_session):
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
@@ -222,6 +241,8 @@ def main_bot(bifit_session):
 
 
 if __name__ == "__main__":
+    asyncio.run(initialize_session(bifit_session))
+
     uvicorn_thread = threading.Thread(target=run_uvicorn, args=(bifit_session,))
     uvicorn_thread.start()
 

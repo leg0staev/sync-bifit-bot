@@ -1,5 +1,6 @@
 import asyncio
 import time
+from datetime import datetime, timezone, timedelta
 
 from Clases.BifitApi.Contactor import Contactor
 from Clases.BifitApi.ContactorsRequest import ContactorsRequest
@@ -16,6 +17,7 @@ from Clases.BifitApi.TradeObject import TradeObject
 from Exceptions.ResponseContentException import ResponseContentException
 from Exceptions.ResponseStatusException import ResponseStatusException
 from logger import logger
+from methods_async import get_pic_url
 
 
 class BifitSession(Request):
@@ -54,9 +56,11 @@ class BifitSession(Request):
 
     async def initialize(self) -> None:
         """Асинхронная инициализация класса."""
+        logger.debug('инициализирую сессию Бифит')
         await self.get_new_token_async()
         await self.get_first_bifit_org_async()
         await self.get_first_bifit_trade_obj_async()
+        await self.get_yml_async()
 
     @property
     async def token(self) -> str:
@@ -464,3 +468,81 @@ class BifitSession(Request):
             yab_goods.append({'good': good, 'parent_nomenclature': parent_nomenclature, 'vendor': vendor})
 
         return yab_goods
+
+    async def get_yml_async(self) -> dict:
+        logger.debug(f'get_yml_async started')
+
+        my_site_url = 'https://pronogti.store'
+
+        tz = timezone(timedelta(hours=3))
+        current_time = datetime.now(tz)
+        products_response = await self.get_bifit_prod_by_markers(('yab',))
+        if isinstance(products_response, dict):
+            yab_products_list = await self.get_yab_goods(products_response.get('yab'))
+        else:
+            logger.debug(f'get_yml finished with error')
+            return {}
+
+        categories_content = ''
+        offers_content = ''
+        errors = {}
+
+        categories = set()
+
+        for item in yab_products_list:
+            product = item.get('good')
+            vendor = item.get('vendor')
+            category = item.get('parent_nomenclature')
+
+            categories.add(category)
+
+            if vendor is None:
+                errors[product.nomenclature.name] = 'Забыл указать производителя'
+                vendor = Contactor({'shortName': 'n0 vendor'})
+                logger.debug(f'для товара {product} Забыл указать производителя')
+                pic_url = f'{my_site_url}/images/no-image.jpg'
+            else:
+                pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name)
+                if pic_url == f'{my_site_url}/images/no-image.jpg':
+                    logger.debug(f'для товара {product} Не нашел картинку на сервере')
+                    errors[product.nomenclature.name] = 'Не нашел картинку на сервере'
+
+            available = 'true' if product.goods.quantity > 0 else 'false'
+
+            offers_content += f"""<offer id="{product.nomenclature.id}"  available="{available}">
+                        <name>{product.nomenclature.name}</name>
+                        <vendor>{vendor.short_name}</vendor>
+                        <price>{product.nomenclature.selling_price}</price>
+                        <currencyId>RUR</currencyId>
+                        <categoryId>{category.id}</categoryId>
+                        <picture>{pic_url}</picture>
+                        <description>
+                            <![CDATA[
+                                {product.nomenclature.description}
+                            ]]>
+                        </description>
+                    </offer>"""
+        for category in categories:
+            categories_content += f'<category id="{category.id}">{category.name}</category>\n'
+
+        self.yml_str = f"""
+<?xml version="1.0" encoding="UTF-8"?>
+    <yml_catalog date="{current_time.isoformat()}">
+        <shop>
+            <name>pronogti.store</name>
+            <company>pronogti.store</company>
+            <url>https://pronogti.store</url>
+            <currencies>
+                <currency id="RUR" rate="1"/>
+            </currencies>
+            <categories>
+                {categories_content.strip()}
+            </categories>
+            <offers>
+                {offers_content}
+            </offers>
+        </shop>
+    </yml_catalog>
+"""
+        logger.debug(f'get_yml finished')
+        return errors
