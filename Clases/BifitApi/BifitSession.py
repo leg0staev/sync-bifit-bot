@@ -525,8 +525,7 @@ class BifitSession(Request):
         for category in categories:
             categories_content += f'<category id="{category.id}">{category.name}</category>\n'
 
-        self.yml_str = f"""
-<?xml version="1.0" encoding="UTF-8"?>
+        self.yml_str = f"""<?xml version="1.0" encoding="UTF-8"?>
     <yml_catalog date="{current_time.isoformat()}">
         <shop>
             <name>pronogti.store</name>
