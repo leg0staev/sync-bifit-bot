@@ -226,7 +226,9 @@ async def main_async() -> None:
 
 
 async def initialize_session(session):
-    await session.initialize()
+    while True:
+        await session.initialize()
+        await asyncio.sleep(12*60*60)
 
 
 def run_uvicorn(bifit_session):
