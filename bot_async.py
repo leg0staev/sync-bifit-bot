@@ -3,6 +3,7 @@
 """
 import asyncio
 import threading
+import uvicorn
 
 # from logger import logger
 from telegram import Update
@@ -201,7 +202,7 @@ async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text('YML обновлен без ошибок')
 
 
-async def main_async() -> None:
+async def main_bot_async() -> None:
     """Старт бота"""
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(BOT_TOKEN).build()
@@ -228,28 +229,30 @@ async def main_async() -> None:
 async def initialize_session(session):
     while True:
         await session.initialize()
-        await asyncio.sleep(12*60*60)
+        await asyncio.sleep(12 * 60 * 60)
 
 
-def run_uvicorn(bifit_session):
-    import uvicorn
+def run_uvicorn():
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
-def main_bot(bifit_session):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(main_async())
+async def main():
+    # Создание задачи для инициализации сессии
+    session_task = asyncio.create_task(initialize_session(bifit_session))
 
-
-if __name__ == "__main__":
-    asyncio.run(initialize_session(bifit_session))
-
-    uvicorn_thread = threading.Thread(target=run_uvicorn, args=(bifit_session,))
+    # Запуск Uvicorn в отдельном потоке
+    uvicorn_thread = threading.Thread(target=run_uvicorn)
     uvicorn_thread.start()
 
-    bot_thread = threading.Thread(target=main_bot, args=(bifit_session,))
-    bot_thread.start()
+    # Запуск основного асинхронного кода бота
+    await main_bot_async()
 
+    # Ожидание завершения потока Uvicorn
     uvicorn_thread.join()
-    bot_thread.join()
+
+    # Опционально: ожидание завершения задачи инициализации сессии
+    await session_task
+
+if __name__ == "__main__":
+    asyncio.run(main())
+    
