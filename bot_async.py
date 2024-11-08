@@ -3,8 +3,8 @@
 """
 import asyncio
 import threading
-import uvicorn
 
+import uvicorn
 # from logger import logger
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
@@ -236,6 +236,10 @@ def run_uvicorn():
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 
+def run_bot():
+    asyncio.run(main_bot_async())
+
+
 async def main():
     # Создание задачи для инициализации сессии
     session_task = asyncio.create_task(initialize_session(bifit_session))
@@ -244,15 +248,17 @@ async def main():
     uvicorn_thread = threading.Thread(target=run_uvicorn)
     uvicorn_thread.start()
 
-    # Запуск основного асинхронного кода бота
-    await main_bot_async()
+    # Запуск основного асинхронного кода бота в отдельном потоке
+    bot_thread = threading.Thread(target=run_bot)
+    bot_thread.start()
 
-    # Ожидание завершения потока Uvicorn
-    uvicorn_thread.join()
+    # Ожидание завершения потока Uvicorn и бота
+    await asyncio.to_thread(uvicorn_thread.join)
+    await asyncio.to_thread(bot_thread.join)
 
     # Опционально: ожидание завершения задачи инициализации сессии
     await session_task
 
+
 if __name__ == "__main__":
     asyncio.run(main())
-    
