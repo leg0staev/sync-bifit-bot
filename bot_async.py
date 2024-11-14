@@ -195,8 +195,8 @@ async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     if yml_update_errors:
         message = ''
-        for product, error in yml_update_errors:
-            message += f'для товара {product} {error}'
+        for product, error in yml_update_errors.items():
+            message += f'для товара {product} - {error}'
         await update.message.reply_text(message)
     else:
         await update.message.reply_text('YML обновлен без ошибок')
