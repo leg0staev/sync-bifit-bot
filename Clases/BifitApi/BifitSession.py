@@ -508,8 +508,9 @@ class BifitSession(Request):
                     errors[product.nomenclature.name] = 'Не нашел картинку на сервере'
 
             available = 'true' if product.goods.quantity > 0 else 'false'
+            offer_id = product.nomenclature.barcode or product.nomenclature.id
 
-            offers_content += f"""<offer id="{product.nomenclature.id}"  available="{available}">
+            offers_content += f"""<offer id="{offer_id}"  available="{available}">
                         <name>{product.nomenclature.name}</name>
                         <vendor>{vendor.short_name}</vendor>
                         <price>{product.nomenclature.selling_price}</price>
