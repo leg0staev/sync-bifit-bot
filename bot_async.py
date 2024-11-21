@@ -180,12 +180,16 @@ async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     yab_products_list = await bifit_session.get_yab_goods(products_response.get('yab'))
 
+    message = ''
     for item in yab_products_list:
         product = item.get('good')
         vendor = item.get('vendor')
 
         pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name, to_bot=True)
-        await update.message.reply_text(f"товар {str(product)}: картинка - {pic_url}")
+
+        message += f"товар {str(product)}: картинка - {pic_url}\n"
+        
+    await update.message.reply_text(message)
 
 
 async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
