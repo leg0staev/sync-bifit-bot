@@ -447,13 +447,12 @@ class BifitSession(Request):
             return {good: parent_nomenclature for good, parent_nomenclature in zip(goods_list, parent_nomenclatures)}
 
     async def get_yab_goods(self, goods_set: set[Good]) -> list[dict]:
-        """Формирует список словарей 
+        """Формирует отсортированный по дате изменения список словарей
         {'good': Товар, 'parent_nomenclature': Родительская номенклатура, 'vendor': Поставщик}"""
         vendor_ids = list({product.nomenclature.contractor_id for product in goods_set})
         coroutines_nomenclatures = [self.get_parent_nomenclature_async(good.nomenclature.id) for good in goods_set]
 
         try:
-
             vendors_dict = await self.get_vendors_async(vendor_ids)
             logger.debug('получил словарь {"id поставщика": Поставщик}\n' f'{vendors_dict=}')
             parent_nomenclatures = await asyncio.gather(*coroutines_nomenclatures)
@@ -462,12 +461,16 @@ class BifitSession(Request):
             logger.debug(f'неожиданный ответ сервера {e} не могу сформировать список номенклатур и поставщиков')
             return []
 
-        yab_goods = []
-        for good, parent_nomenclature in zip(goods_set, parent_nomenclatures):
-            vendor = vendors_dict.get(good.nomenclature.contractor_id)
-            yab_goods.append({'good': good, 'parent_nomenclature': parent_nomenclature, 'vendor': vendor})
+        yab_goods_dict = []
 
-        return yab_goods
+        sorted_yab_goods = sorted(list(zip(goods_set, parent_nomenclatures)),
+                                  key=lambda item: item[0].nomenclature.changed)
+
+        for good, parent_nomenclature in sorted_yab_goods:
+            vendor = vendors_dict.get(good.nomenclature.contractor_id)
+            yab_goods_dict.append({'good': good, 'parent_nomenclature': parent_nomenclature, 'vendor': vendor})
+
+        return yab_goods_dict
 
     async def get_yml_async(self) -> dict:
         logger.debug(f'get_yml_async started')

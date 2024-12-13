@@ -174,20 +174,24 @@ async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Выводит в бот ожидаемые ссылки на картинки"""
+    """Выводит в бот ожидаемые ссылки на картинки 15 последних измененных товаров"""
+    TAIL = 15
 
     products_response = await bifit_session.get_bifit_prod_by_markers(('yab',))
 
     yab_products_list = await bifit_session.get_yab_goods(products_response.get('yab'))
 
-    message = ''
-    for item in yab_products_list:
+    last_changed_list = yab_products_list[-15:]
+
+    message = f'ссылки на картинки {TAIL} последних измененных товара:\n'
+
+    for item in last_changed_list:
         product = item.get('good')
         vendor = item.get('vendor')
 
         pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name, to_bot=True)
 
-        message += f"товар {str(product)}: картинка - {pic_url}\n"
+        message += f"{str(product)}: картинка - {pic_url}\n"
         
     await update.message.reply_text(message)
 
