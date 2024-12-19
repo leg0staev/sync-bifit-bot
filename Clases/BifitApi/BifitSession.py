@@ -494,6 +494,13 @@ class BifitSession(Request):
 
         for item in yab_products_list:
             product = item.get('good')
+
+            if product.goods.quantity == 0:
+                continue
+
+            available = 'true'
+            # available = 'true' if product.goods.quantity > 0 else 'false'
+
             vendor = item.get('vendor')
             category = item.get('parent_nomenclature')
 
@@ -510,7 +517,6 @@ class BifitSession(Request):
                     logger.debug(f'для товара {product} Не нашел картинку на сервере')
                     errors[product.nomenclature.name] = 'Не нашел картинку на сервере'
 
-            available = 'true' if product.goods.quantity > 0 else 'false'
             offer_id = product.nomenclature.barcode or product.nomenclature.id
 
             offers_content += f"""<offer id="{offer_id}"  available="{available}">
