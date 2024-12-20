@@ -12,6 +12,7 @@ class OzonApi:
     GET_ALL_PRODUCTS_URL = 'https://api-seller.ozon.ru/v2/product/list'
     GET_ALL_WAREHOUSES = 'https://api-seller.ozon.ru/v1/warehouse/list'
     SEND_REMAINS_URL = 'https://api-seller.ozon.ru/v2/products/stocks'
+    GET_ALL_POSTINGS_URL = 'https://api-seller.ozon.ru/v3/posting/fbs/unfulfilled/list'
 
     def __init__(self, token: str, id_: str) -> None:
 
