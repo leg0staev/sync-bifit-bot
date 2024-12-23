@@ -1,15 +1,17 @@
 class TradeObject:
 	"""Класс торгового объекта Бифит-кассы"""
+
 	def __init__(self, data):
-		self.id = data['id']
-		self.created = data['created']
-		self.changed = data['changed']
-		self.organizationId = data['organizationId']
-		self.name = data['name']
-		self.address = data['address']
-		self.taxSystemMask = data['taxSystemMask']
-		self.taxSystemList = data['taxSystemList']
-		self.kpp = data['kpp']
-		self.application = data['application']
-		self.mdlp = data['mdlp']
+		self.id = data.get('id')
+		self.created = data.get('created')
+		self.changed = data.get('changed')
+		self.organizationId = data.get('organizationId')
+		self.name = data.get('name')
+		self.address = data.get('address')
+		self.taxSystemMask = data.get('taxSystemMask')
+		self.taxSystemList = data.get('taxSystemList')
+		self.kpp = data.get('kpp')
+		self.application = data.get('application')
+		self.mdlp = data.get('mdlp')
+
 

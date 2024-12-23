@@ -49,7 +49,7 @@ class BifitSession(Request):
         self.access_token: str | None = None
         self.expiration_time: float | None = None
         self.refresh_token: str | None = None
-        self.organisation: str | None = None
+        self.organisation: Organization | None = None
         self.trade_object: str | None = None
         self.yml_str: str | None = None
         logger.debug('создал класс сессии бифит-касса')
