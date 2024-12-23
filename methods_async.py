@@ -1,14 +1,14 @@
+from transliterate import slugify
+
 from Clases.ApiMarketplaces.Ali.AliApiAsync import AliApiAsync
-from Clases.ApiMarketplaces.Ozon.OzonApiAsync import OzonApiAsync
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 from Clases.ApiMarketplaces.Vk.VkApiAsync import VkApiAsync
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
 from Clases.ApiMarketplaces.Ya.YAapiAsync import YAapiAsync
-
-from transliterate import slugify
 from Clases.BifitApi.Request import Request
 from logger import logger
+from sessions import ozon_session
 
 
 async def send_to_yandex_async(ya_token: str,
@@ -56,8 +56,7 @@ async def send_to_vk_async(vk_token: str,
 
 
 async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_goods_dict: dict[str:int]) -> dict:
-    ozon_api = OzonApiAsync(ozon_admin_key, ozon_client_id)
-    ozon_products_request = await ozon_api.get_all_products_async()
+    ozon_products_request = await ozon_session.get_all_products_async()
     logger.debug(f' ozon_products_request - {ozon_products_request}')
     if 'error' in ozon_products_request:
         logger.error(f'send_to_ozon_async finished with error - {ozon_products_request}')
@@ -69,7 +68,7 @@ async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_good
         return {'error': f'Ошибка в ответе сервера на запрос товаров ВК - {str(e)}'}
     ozon_products_dict = ozon_products_response.get_skus_id_dict()
     logger.debug(f' ozon_products_dict - {ozon_products_dict}')
-    ozon_warehouses_response = await ozon_api.get_warehouses_async()
+    ozon_warehouses_response = await ozon_session.get_warehouses_async()
     logger.debug(f' ozon_warehouses_response - {ozon_warehouses_response}')
     warehouses_result_list = ozon_warehouses_response.get('result')
     if not warehouses_result_list:
@@ -77,7 +76,7 @@ async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_good
         return {'error': f'Ошибка в ответе сервера на запрос списка складов - {ozon_warehouses_response}'}
 
     ozon_warehouses = [Warehouse(w) for w in warehouses_result_list if w.get('status') != "disabled"]
-    return await ozon_api.send_remains_async(ozon_products_dict, ozon_goods_dict, ozon_warehouses)
+    return await ozon_session.send_remains_async(ozon_products_dict, ozon_goods_dict, ozon_warehouses)
 
 
 async def send_to_ali_async(ali_token: str, ali_goods_dict: dict[str:int]) -> dict:

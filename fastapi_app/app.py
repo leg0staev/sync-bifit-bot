@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, Response
 
 from Clases.BifitApi.Contactor import Contactor
-from bifit_session import bifit_session
+from sessions import bifit_session
 from logger import logger
 from methods_async import get_pic_url
 

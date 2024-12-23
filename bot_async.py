@@ -6,12 +6,12 @@ import threading
 
 import uvicorn
 # from logger import logger
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 from Exceptions.ResponseContentException import ResponseContentException
 from Exceptions.ResponseStatusException import ResponseStatusException
-from bifit_session import bifit_session
+from sessions import bifit_session
 from fastapi_app.app import app
 from methods import parse_calculation, get_write_off_msg, products_write_off, \
     goods_list_to_csv_str
@@ -31,6 +31,7 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс списания товаров из склада бифит-кассы"""
     logger.debug("write_off started")
     calculation = update.message.text
+    logger.debug(f'получено сообщение - {calculation}')
     await update.message.reply_text("это что рассчет? сейчас проверю..")
 
     products_to_remove, without_barcode, without_quantity = parse_calculation(calculation)
@@ -192,7 +193,7 @@ async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name, to_bot=True)
 
         message += f"{str(product)}: картинка - {pic_url}\n"
-        
+
     await update.message.reply_text(message)
 
 
@@ -210,6 +211,31 @@ async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text('YML обновлен без ошибок')
 
 
+async def get_ozon_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    keyboard = [
+        [InlineKeyboardButton("да, создать списание", callback_data='make_write_off_document')],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text('создать документы списания в бифит-касса?', reply_markup=reply_markup)
+
+
+async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    await query.answer()
+
+    # Добавьте свою логику для make_document
+    if data == 'make_write_off_document':
+        await query.edit_message_text(text="хорошо, создаю списание")
+        await make_write_off_document(update, context)
+
+
+async def make_write_off_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    # Ваша логика для make_document
+    await query.edit_message_text(text="Документы созданы!")
+
+
 async def main_bot_async() -> None:
     """Старт бота"""
     # Create the Application and pass it your bot's token.
@@ -219,8 +245,10 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("pic_links", get_yab_pic_names))
     application.add_handler(CommandHandler("get_yml", get_new_yml))
+    application.add_handler(CommandHandler("get_ozon_orders", get_ozon_orders))
     application.add_handler(CommandHandler("sync", synchronization))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
+    application.add_handler(CallbackQueryHandler(handle_callbacks))
     # on non command i.e message - echo the message on Telegram
     # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
