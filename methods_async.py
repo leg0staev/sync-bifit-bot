@@ -1,6 +1,7 @@
 from transliterate import slugify
 
 from Clases.ApiMarketplaces.Ali.AliApiAsync import AliApiAsync
+from Clases.ApiMarketplaces.Ozon.OzonApiAsync import OzonApiAsync
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 from Clases.ApiMarketplaces.Vk.VkApiAsync import VkApiAsync
@@ -8,7 +9,6 @@ from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
 from Clases.ApiMarketplaces.Ya.YAapiAsync import YAapiAsync
 from Clases.BifitApi.Request import Request
 from logger import logger
-from sessions import ozon_session
 
 
 async def send_to_yandex_async(ya_token: str,
@@ -56,6 +56,8 @@ async def send_to_vk_async(vk_token: str,
 
 
 async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_goods_dict: dict[str:int]) -> dict:
+    ozon_session = OzonApiAsync(ozon_admin_key, ozon_client_id)
+
     ozon_products_request = await ozon_session.get_all_products_async()
     logger.debug(f' ozon_products_request - {ozon_products_request}')
     if 'error' in ozon_products_request:
@@ -77,6 +79,11 @@ async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_good
 
     ozon_warehouses = [Warehouse(w) for w in warehouses_result_list if w.get('status') != "disabled"]
     return await ozon_session.send_remains_async(ozon_products_dict, ozon_goods_dict, ozon_warehouses)
+
+
+async def make_write_off_docs(ozon_admin_key: str, ozon_client_id: str):
+    ozon_session = OzonApiAsync(ozon_admin_key, ozon_client_id)
+    ozon_postings_request = await ozon_session.get_all_postings_async()
 
 
 async def send_to_ali_async(ali_token: str, ali_goods_dict: dict[str:int]) -> dict:

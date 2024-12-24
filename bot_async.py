@@ -211,7 +211,9 @@ async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text('YML обновлен без ошибок')
 
 
-async def get_ozon_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def get_ozon_postings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text('запрашиваю отправления в ОЗОН')
+    await make_write_off_docs(OZON_ADMIN_KEY, OZON_CLIENT_ID)
     keyboard = [
         [InlineKeyboardButton("да, создать списание", callback_data='make_write_off_document')],
     ]
@@ -245,7 +247,7 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("pic_links", get_yab_pic_names))
     application.add_handler(CommandHandler("get_yml", get_new_yml))
-    application.add_handler(CommandHandler("get_ozon_orders", get_ozon_orders))
+    application.add_handler(CommandHandler("get_ozon_postings", get_ozon_postings))
     application.add_handler(CommandHandler("sync", synchronization))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
     application.add_handler(CallbackQueryHandler(handle_callbacks))
