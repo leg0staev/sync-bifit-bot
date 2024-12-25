@@ -109,4 +109,3 @@ class Request:
                     image_data = await response.read()
                     return {'image_data': image_data}
                 return await response.json()
-

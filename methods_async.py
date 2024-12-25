@@ -3,6 +3,7 @@ from transliterate import slugify
 from Clases.ApiMarketplaces.Ali.AliApiAsync import AliApiAsync
 from Clases.ApiMarketplaces.Ozon.OzonApiAsync import OzonApiAsync
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
+from Clases.ApiMarketplaces.Ozon.Posting import Posting
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 from Clases.ApiMarketplaces.Vk.VkApiAsync import VkApiAsync
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
@@ -67,7 +68,7 @@ async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_good
         ozon_products_response = OzonProdResponse(ozon_products_request)
     except KeyError as e:
         logger.error(f'Ошибка в ответе сервера на запрос товаров Озон - {e}')
-        return {'error': f'Ошибка в ответе сервера на запрос товаров ВК - {str(e)}'}
+        return {'error': f'Ошибка в ответе сервера на запрос товаров Озон - {str(e)}'}
     ozon_products_dict = ozon_products_response.get_skus_id_dict()
     logger.debug(f' ozon_products_dict - {ozon_products_dict}')
     ozon_warehouses_response = await ozon_session.get_warehouses_async()
@@ -81,10 +82,19 @@ async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_good
     return await ozon_session.send_remains_async(ozon_products_dict, ozon_goods_dict, ozon_warehouses)
 
 
-async def make_write_off_docs(ozon_admin_key: str, ozon_client_id: str):
+async def make_write_off_docs_from_ozon(ozon_admin_key: str, ozon_client_id: str):
     ozon_session = OzonApiAsync(ozon_admin_key, ozon_client_id)
-    ozon_postings_request = await ozon_session.get_all_postings_async()
+    ozon_postings_response = await ozon_session.get_all_postings_async()
 
+    result = ozon_postings_response.get('result')
+    if result is None:
+        logger.error(f'Ошибка в ответе сервера на запрос отправлений Озон')
+        return {'error': 'Ошибка в ответе сервера на запрос отправлений Озон - неожиданный ответ сервера'}
+
+    ozon_postings = [Posting(item) for item in result.get('postings')]
+    if not ozon_postings:
+        return {'error': 'Ошибка, список отправлений пуст'}
+    return ozon_postings
 
 async def send_to_ali_async(ali_token: str, ali_goods_dict: dict[str:int]) -> dict:
     ali_api = AliApiAsync(ali_token, ali_goods_dict)

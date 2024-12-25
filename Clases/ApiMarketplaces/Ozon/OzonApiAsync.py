@@ -77,13 +77,13 @@ class OzonApiAsync(OzonApi):
 
         T_DELTA = 7 # отрезок времени за который надо найти заказы
         dir_ = "desc"  # сортировка по убыванию
-        status = 'awaiting_deliver'
+        status = 'awaiting_deliver' # статус - ожидает отправки
 
         now = datetime.now(timezone.utc)
         cutoff_to = now.strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
-        logger.debug(f'{cutoff_to=}')
+        # logger.debug(f'{cutoff_to=}')
         cutoff_from = (now - timedelta(days=T_DELTA)).strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
-        logger.debug(f'{cutoff_from=}')
+        # logger.debug(f'{cutoff_from=}')
         data = {
             "dir": dir_,
             "filter": {
@@ -104,7 +104,8 @@ class OzonApiAsync(OzonApi):
                 "translit": False
             }
         }
-        logger.debug(f'{data=}')
+        # logger.debug(f'{data=}')
+
         async with aiohttp.ClientSession() as session:
             async with session.post(OzonApi.GET_ALL_POSTINGS_URL,
                                     headers=self.headers,
@@ -119,8 +120,5 @@ class OzonApiAsync(OzonApi):
 
                 else:
                     logger.debug('закончил get_all_postings_async в озон успешно')
-                    resp_json = await response.json()
-                    logger.debug('ответ сервера ozon -\n'
-                                 f'{resp_json}')
                     return await response.json()
 
