@@ -2,7 +2,7 @@ class Goods:
     def __init__(self, data: dict) -> None:
         """Класс товара"""
         self.trade_trade_object_id = data.get('tradeObjectId')
-        self.nomenclature_id = data.get('nomenclatureId')
+        self.nomenclature_id = int(data.get('nomenclatureId'))
 
         quantity = data.get('quantity', 0)
 

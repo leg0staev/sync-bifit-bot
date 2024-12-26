@@ -1,13 +1,24 @@
 class Nomenclature:
+    __slots__ = (
+        'id', 'organization_id', 'external_id', 'external_code', 'created', 'changed', 'barcode', 'vendor_code',
+        'name', 'short_name', 'parent_id', 'vat_id', 'vat_value', 'volume', 'unit_code', 'purchase_price',
+        'selling_price', 'picture', 'weighted', 'grouped', 'focused', 'container', 'payment_subject', 'adults_only',
+        'code', 'mark_type', 'gtin', 'plu_code', 'template', 'visible', 'contractor_activity_type', 'contractor_id',
+        'custom', 'trade_object_relations', 'type', 'composite_goods', 'barcodes', 'country_code',
+        'customs_declaration', 'description', 'pictures_ids', 'application', 'nomenclature_features',
+        'org_member_points', 'global_nomenclature_id', 'quantum', 'global_category_id',
+        'global_nomenclature_moderation_status', 'expiration', 'expiration_date', 'fifo', 'status', 'all_barcodes',
+        'all_picture_ids'
+    )
 
     def __init__(self, data: dict) -> None:
-        self.id = data.get("id")
+        self.id = int(data.get("id"))
         self.organization_id = data.get("organizationId")
         self.external_id = data.get("externalId")
         self.external_code = data.get("externalCode")
         self.created = data.get("created")
         self.changed = data.get("changed")
-        self.barcode = data.get("barcode")
+        self.barcode = int(data.get("barcode"))
         self.vendor_code = data.get("vendorCode")
         self.name = data.get("name")
         self.short_name = data.get("shortName") or 'n0 short_name'
@@ -41,7 +52,7 @@ class Nomenclature:
         self.country_code = data.get("countryCode")
         self.customs_declaration = data.get("customsDeclaration")
         self.description = data.get("description")
-        self.picturesIds = data.get("picturesIds")
+        self.pictures_ids = data.get("picturesIds")
         self.application = data.get("application")
         self.nomenclature_features = data.get("nomenclatureFeatures")
         self.org_member_points = data.get("orgMemberPoints")
@@ -54,7 +65,7 @@ class Nomenclature:
         self.fifo = data.get("fifo")
         self.status = data.get("status")
         self.all_barcodes = data.get("allBarcodes")
-        self.all_pictureIds = data.get("allPictureIds")
+        self.all_picture_ids = data.get("allPictureIds")
 
     def __hash__(self):
         return hash(self.id)

@@ -1,6 +1,7 @@
 import asyncio
 import time
 from datetime import datetime, timezone, timedelta
+from typing import Dict, Set
 
 from Clases.BifitApi.Contactor import Contactor
 from Clases.BifitApi.ContactorsRequest import ContactorsRequest
@@ -245,7 +246,7 @@ class BifitSession(Request):
             logger.debug('get_bifit_products_set_async finished with exception')
             raise ResponseContentException(goods_list_response)
 
-    async def get_bifit_prod_by_markers(self, markers: tuple[str] = ()) -> None | set[Good] | dict[str, dict[str, int]]:
+    async def get_bifit_prod_by_markers(self, markers: tuple[str] = ()) -> dict[str, str] | set[Good]:
         """Получает список всех товаров из склада Бифит-кассы по маркерам"""
         logger.debug('get_bifit_prod_by_markers started')
 
@@ -269,7 +270,7 @@ class BifitSession(Request):
 
         if 'error' in goods_list_response:
             logger.error(f'Ошибка на этапе запроса списка товаров - {goods_list_response}')
-            return None
+            return goods_list_response
 
         logger.debug('товары получил. пробую прочитать')
 
@@ -280,7 +281,7 @@ class BifitSession(Request):
                 except KeyError as e:
                     logger.error(f'Неожиданный ответ сервера. Ошибка формирования товара - {e}')
                     logger.debug('get_bifit_products_set_async finished with exception')
-                    return None
+                    return {'error': f'{e}'}
 
                 if markers:
                     for marker in markers:
@@ -303,7 +304,7 @@ class BifitSession(Request):
 
         except TypeError as e:
             logger.error(f'Неожиданный ответ сервера - {e}')
-            return None
+            return {'error': f'{e}'}
 
         logger.debug('get_bifit_prod_by_markers finished smoothly')
         return all_products or market_products

@@ -1,5 +1,4 @@
 class Cancellation:
-
     __slots__ = ('cancel_reason_id',
                  'cancel_reason',
                  'cancellation_type',

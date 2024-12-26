@@ -1,11 +1,21 @@
 class Organization:
+
+    __slots__ = (
+        'id', 'visible', 'created', 'name', 'address', 'inn',
+        'taxSystemMask', 'taxSystemList', 'sla', 'receiptPriceLimit',
+        'totalPriceLimit', 'permissions', 'email', 'phone', 'kpp',
+        'economicActivityCode', 'region', 'fpId', 'defaultVat',
+        'multiOrganization', 'internalType', 'organizationPostfix',
+        'blocked', 'blockedCause'
+    )
+
     def __init__(self, data):
         self.id = data.get('id')
         self.visible = data.get('visible')
         self.created = data.get('created')
         self.name = data.get('name')
         self.address = data.get('address')
-        self.inn = data.get('inn')
+        self.inn = int(data.get('inn'))
         self.taxSystemMask = data.get('taxSystemMask')
         self.taxSystemList = data.get('taxSystemList')
         self.sla = data.get('sla')

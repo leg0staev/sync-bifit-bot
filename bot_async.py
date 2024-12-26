@@ -81,7 +81,7 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
+    """НЕ ИСПОЛЬЗУЕТСЯ! Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
     try:
         ya_goods, ali_goods, vk_goods, ozon_goods, *_ = await bifit_session.get_bifit_products_async()
@@ -212,8 +212,18 @@ async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text('запрашиваю отправления в ОЗОН')
-    await make_write_off_docs_from_ozon(OZON_ADMIN_KEY, OZON_CLIENT_ID)
+    """Создает документы списания исходя из заказов на маркетах"""
+    await update.message.reply_text('запрашиваю отправления в ОЗОН и товары в Бифит')
+
+    coroutines = set()
+    ozon_session = OzonApiAsync(OZON_ADMIN_KEY, OZON_CLIENT_ID)
+    # bifit_products = await bifit_session.get_bifit_prod_by_markers()
+    # ozon_postings = await ozon_session.get_all_postings_async()
+    coroutines.add(bifit_session.get_bifit_prod_by_markers())
+    coroutines.add(ozon_session.get_all_postings_async())
+
+    bifit_products, ozon_postings = await asyncio.gather(*coroutines)
+
     keyboard = [
         [InlineKeyboardButton("да, создать списание", callback_data='make_write_off_document')],
     ]
