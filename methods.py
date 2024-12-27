@@ -215,5 +215,5 @@ def send_to_ozon(ozon_admin_key: str, ozon_client_id: str, ozon_goods_dict: dict
     return ozon_send_remains_response
 
 
-def form_name(name: str) -> str:
-    ...
+def get_market_goods_dict(goods_set: set[Good]) -> dict[str, int]:
+    return {good.nomenclature.barcode: good.goods.quantity for good in goods_set}

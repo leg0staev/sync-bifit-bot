@@ -9,13 +9,11 @@ import uvicorn
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
-from Exceptions.ResponseContentException import ResponseContentException
-from Exceptions.ResponseStatusException import ResponseStatusException
-from sessions import bifit_session
 from fastapi_app.app import app
 from methods import parse_calculation, get_write_off_msg, products_write_off, \
-    goods_list_to_csv_str
+    goods_list_to_csv_str, get_market_goods_dict
 from methods_async import *
+from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
     OZON_CLIENT_ID, OZON_ADMIN_KEY, BOT_TOKEN
 
@@ -50,8 +48,8 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text(message)
     await update.message.reply_text("сейчас запрошу актуальные остатки из Бифит")
-    *_, goods_set = await bifit_session.get_bifit_products_async()
-    if goods_set is None:
+    goods_set = await bifit_session.get_all_bifit_prod()
+    if 'error' in goods_set:
         await update.message.reply_text(f"не получил список товаров от Бифит. ошибка.")
         return None
 
@@ -80,66 +78,23 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                         f'{outdated_goods_set}')
 
 
-async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """НЕ ИСПОЛЬЗУЕТСЯ! Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
-
-    try:
-        ya_goods, ali_goods, vk_goods, ozon_goods, *_ = await bifit_session.get_bifit_products_async()
-    except ResponseStatusException:
-        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка статуса сервера."
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
-    except ResponseContentException:
-        await update.message.reply_text(f"не получил список товаров от Бифит. Неожиданный ответ сервера."
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
-
-    await update.message.reply_text("получил товары из бифит")
-
-    coroutines = []
-
-    if ya_goods:
-        await update.message.reply_text("Нашел товары для Яндекс")
-        coroutines.append(send_to_yandex_async(YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ya_goods))
-
-    if ozon_goods:
-        await update.message.reply_text("Нашел товары для Озон")
-        coroutines.append(send_to_ozon_async(OZON_ADMIN_KEY, OZON_CLIENT_ID, ozon_goods))
-
-    if ali_goods:
-        await update.message.reply_text("Нашел товары для Ali")
-        coroutines.append(send_to_ali_async(ALI_TOKEN, ali_goods))
-
-    if vk_goods:
-        await update.message.reply_text("Нашел товары для ВК")
-        coroutines.append(send_to_vk_async(VK_TOKEN, VK_OWNER_ID, VK_API_VER, vk_goods))
-
-    if coroutines:
-        await update.message.reply_text("Отправляю все остатки")
-        errors = await asyncio.gather(*coroutines)
-        if any(errors):
-            await update.message.reply_text("возникли ошибки при отправке данных:\n"
-                                            "{Яндекс}, {Озон}, {Али}, {Вк}"
-                                            f"{errors}")
-        else:
-            await update.message.reply_text("Отправка прошла без ошибок!")
-    else:
-        await update.message.reply_text("Нет товаров для отправки.")
-
-
 async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
-    market_prod_dict = await bifit_session.get_bifit_prod_by_markers(("ya", "oz", "ali", "vk"))
+    market_prod_dict = await bifit_session.get_bifit_prod_by_marker(("ya", "oz", "ali", "vk"))
 
-    if market_prod_dict:
+    if 'error' in market_prod_dict:
+        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка"
+                                        f" тапни /sync чтобы попробовать еще раз")
+        return None
 
+    else:
         await update.message.reply_text("получил товары из бифит")
 
-        ya_goods: dict[str, int] = market_prod_dict.get('ya')
-        ali_goods: dict[str, int] = market_prod_dict.get('ali')
-        vk_goods: dict[str, int] = market_prod_dict.get('vk')
-        ozon_goods: dict[str, int] = market_prod_dict.get('oz')
+        ya_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('ya'))
+        ali_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('ali'))
+        vk_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('vk'))
+        ozon_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('oz'))
 
         coroutines = set()
 
@@ -168,19 +123,15 @@ async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                                 f"{errors}")
             else:
                 await update.message.reply_text("Отправка прошла без ошибок!")
-    else:
-        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка"
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
 
 
 async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Выводит в бот ожидаемые ссылки на картинки 15 последних измененных товаров"""
     TAIL = -15
 
-    products_response = await bifit_session.get_bifit_prod_by_markers(('yab',))
+    products_response = await bifit_session.get_bifit_prod_by_marker(('yab',))
 
-    yab_products_list = await bifit_session.get_yab_goods(products_response.get('yab'))
+    yab_products_list = await bifit_session.get_yab_goods_list(products_response.get('yab'))
 
     last_changed_list = yab_products_list[TAIL:]
 
@@ -219,10 +170,10 @@ async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE
     ozon_session = OzonApiAsync(OZON_ADMIN_KEY, OZON_CLIENT_ID)
     # bifit_products = await bifit_session.get_bifit_prod_by_markers()
     # ozon_postings = await ozon_session.get_all_postings_async()
-    coroutines.add(bifit_session.get_bifit_prod_by_markers())
+    coroutines.add(bifit_session.get_bifit_prod_by_marker(('oz',)))
     coroutines.add(ozon_session.get_all_postings_async())
 
-    bifit_products, ozon_postings = await asyncio.gather(*coroutines)
+    ozon_products, ozon_postings = asyncio.gather(*coroutines)
 
     keyboard = [
         [InlineKeyboardButton("да, создать списание", callback_data='make_write_off_document')],

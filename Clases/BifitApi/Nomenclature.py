@@ -18,7 +18,7 @@ class Nomenclature:
         self.external_code = data.get("externalCode")
         self.created = data.get("created")
         self.changed = data.get("changed")
-        self.barcode = int(data.get("barcode"))
+        self.barcode = data.get("barcode")
         self.vendor_code = data.get("vendorCode")
         self.name = data.get("name")
         self.short_name = data.get("shortName") or 'n0 short_name'
