@@ -597,7 +597,7 @@ class BifitSession(Request):
     async def make_write_off_doc(self, items_to_write_of):
         data = {
             "document": {
-                "id": null,
+                "id": None,
                 "visible": True,
                 "created": "1734556800000",
                 "changed": "1734556800000",
@@ -609,11 +609,11 @@ class BifitSession(Request):
                 "documentNumber": "postman",
                 "description": "postman",
                 "relatedDocuments": [],
-                "writeOffArticleId": null,
-                "contractorId": null,
-                "purchaseAmount": null,
-                "sellingAmount": null,
-                "automatically": false
+                "writeOffArticleId": None,
+                "contractorId": None,
+                "purchaseAmount": None,
+                "sellingAmount": None,
+                "automatically": False
             },
             "items": [
                 {
@@ -626,7 +626,7 @@ class BifitSession(Request):
                     "purchasePrice": 220.5,
                     "sellingPrice": 420,
                     "amount": 220.5,
-                    "currencyCode": null,
+                    "currencyCode": None,
                     "nomenclatureFeatures": [],
                     "quantity": 0,
                     "accountBalance": 2
