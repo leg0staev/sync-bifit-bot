@@ -217,3 +217,25 @@ def send_to_ozon(ozon_admin_key: str, ozon_client_id: str, ozon_goods_dict: dict
 
 def get_market_goods_dict(goods_set: set[Good]) -> dict[str, int]:
     return {good.nomenclature.barcode: good.goods.quantity for good in goods_set}
+
+
+def get_bifit_products_set(srv_resp: dict) -> set[Good] | set[str]:
+    all_prod = set()
+    try:
+        for item in srv_resp:
+            try:
+                product = Good(Goods(item['goods']), Nomenclature(item['nomenclature']))
+            except KeyError as e:
+                logger.error(f'Неожиданный ответ сервера. Ошибка формирования товара - {e}')
+                logger.debug('get_bifit_products_set завершил с ошибкой')
+                return {'error', f'ошибка формирования товара. неожиданный ответ сервера - {e}'}
+            else:
+                all_prod.add(product)
+
+    except TypeError as e:
+        logger.error(f'Неожиданный ответ сервера - {e}')
+        return {'error', f'ошибка формирования списка товаров. неожиданный ответ сервера - {e}'}
+
+    logger.debug('get_bifit_prod_by_markers закончил без ошибок')
+
+    return all_prod

@@ -188,6 +188,24 @@ class BifitSession(Request):
                 self.trade_object = trade_obj_list[0]
                 logger.debug('get_bifit_org_list_async finished smoothly')
 
+    async def get_all_bifit_prod_response(self) -> dict:
+        """Получает список ответ сервера на запрос всех товаров из склада Бифит-кассы"""
+        logger.debug('начал get_all_bifit_prod')
+        # Получение токена и других необходимых данных
+        token = await self.token
+        org = await self.org
+        trade_obj = await self.trade_obj
+
+        goods_list_request = GoodsListReq(
+            url=BifitSession.GOODS_LIST_URL,
+            token=token,
+            org_id=org.id,
+            trade_obj_id=trade_obj.id
+        )
+
+        logger.debug('Отправляю запрос на получение всех товаров склада Бифит-кассы')
+        return await goods_list_request.send_post_async()
+
     async def get_all_bifit_prod(self) -> set[Good] | set[str]:
         """Получает список всех товаров из склада Бифит-кассы"""
         logger.debug('начал get_all_bifit_prod')
@@ -234,24 +252,31 @@ class BifitSession(Request):
         return all_products
 
     async def get_bifit_prod_by_marker(self, markers: tuple[str]) -> dict[str, str] | dict[str, set]:
-        products = await self.get_all_bifit_prod()
-        if 'error' in products:
-            return {'error': f'{products[1]}'}
+        srv_resp = await self.get_all_bifit_prod_response()
+        if 'error' in srv_resp:
+            return {'error': f'{srv_resp[1]}'}
 
         market_products: dict = {}
 
-        for product in products:
+        for item in srv_resp:
             try:
-                markets: list[str] = product.nomenclature.vendor_code.split("-")
-            except AttributeError:
-                continue
+                product = Good(Goods(item['goods']), Nomenclature(item['nomenclature']))
+            except KeyError as e:
+                logger.error(f'Неожиданный ответ сервера. Ошибка формирования товара - {e}')
+                logger.debug('get_bifit_products_set_async finished with exception')
+                return {'error', f'ошибка формирования товара. неожиданный ответ сервера - {e}'}
             else:
-                for marker in markers:
-                    if marker in markets:
+                try:
+                    markets: list[str] = product.nomenclature.vendor_code.split("-")
+                except AttributeError:
+                    continue
+                else:
+                    for marker in markers:
+                        if marker in markets:
 
-                        if marker not in market_products:
-                            market_products[marker] = set()
-                        market_products[marker].add(product)
+                            if marker not in market_products:
+                                market_products[marker] = set()
+                            market_products[marker].add(product)
 
         return market_products
 
@@ -568,3 +593,43 @@ class BifitSession(Request):
 """
         logger.debug(f'get_yml finished')
         return errors
+
+    async def make_write_off_doc(self, items_to_write_of):
+        data = {
+            "document": {
+                "id": null,
+                "visible": True,
+                "created": "1734556800000",
+                "changed": "1734556800000",
+                "organizationId": "1616167659097-148354427",
+                "tradeObjectId": "1616167659101-693800423",
+                "documentDate": "1734556800000",
+                "status": "NEW",
+                "responsiblePerson": "Легостаева Анастасия",
+                "documentNumber": "postman",
+                "description": "postman",
+                "relatedDocuments": [],
+                "writeOffArticleId": null,
+                "contractorId": null,
+                "purchaseAmount": null,
+                "sellingAmount": null,
+                "automatically": false
+            },
+            "items": [
+                {
+                    "id": 5523646,
+                    "documentId": 287890,
+                    "nomenclatureId": 31195950,
+                    "vendorCode": "ali-vk-oz-ya",
+                    "barcode": "4673722702512",
+                    "unitCode": "796",
+                    "purchasePrice": 220.5,
+                    "sellingPrice": 420,
+                    "amount": 220.5,
+                    "currencyCode": null,
+                    "nomenclatureFeatures": [],
+                    "quantity": 0,
+                    "accountBalance": 2
+                }
+            ]
+        }

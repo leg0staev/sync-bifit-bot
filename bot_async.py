@@ -11,7 +11,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 
 from fastapi_app.app import app
 from methods import parse_calculation, get_write_off_msg, products_write_off, \
-    goods_list_to_csv_str, get_market_goods_dict
+    goods_list_to_csv_str, get_market_goods_dict, get_bifit_products_set
 from methods_async import *
 from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
@@ -47,10 +47,17 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = get_write_off_msg(products_to_remove, without_barcode, without_quantity)
 
     await update.message.reply_text(message)
-    await update.message.reply_text("сейчас запрошу актуальные остатки из Бифит")
-    goods_set = await bifit_session.get_all_bifit_prod()
+    await update.message.reply_text("отправляю запрос на актуальные остатки из Бифит")
+
+    server_response = await bifit_session.get_all_bifit_prod_response()
+    if 'error' in server_response:
+        await update.message.reply_text(f"сервер вернул ошибку - {server_response.get('error')}")
+        return None
+    await update.message.reply_text(f"получил ответ от сервера, пробую прочитать")
+
+    goods_set = get_bifit_products_set(server_response)
     if 'error' in goods_set:
-        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка.")
+        await update.message.reply_text(f"не могу прочитать товары. неожиданный ответ сервера")
         return None
 
     await update.message.reply_text("получил товары из Бифит, минусую.")
@@ -175,6 +182,12 @@ async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     ozon_products, ozon_postings = asyncio.gather(*coroutines)
 
+
+
+
+
+async def keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Просто примет клавиатуры))"""
     keyboard = [
         [InlineKeyboardButton("да, создать списание", callback_data='make_write_off_document')],
     ]
