@@ -221,6 +221,7 @@ def get_market_goods_dict(goods_set: set[Good]) -> dict[str, int]:
 
 
 def get_bifit_products_set(srv_resp: dict) -> set[Good] | set[str]:
+    logger.debug('начал get_bifit_products_set')
     all_prod = set()
     try:
         for item in srv_resp:
@@ -243,6 +244,7 @@ def get_bifit_products_set(srv_resp: dict) -> set[Good] | set[str]:
 
 
 def make_ozon_write_off_items(market_prod: set[Good], ozon_posting: Posting) -> list[dict]:
+    logger.debug('начал make_ozon_write_off_items')
     items = []
 
     for prod in ozon_posting.products:
@@ -264,5 +266,5 @@ def make_ozon_write_off_items(market_prod: set[Good], ozon_posting: Posting) -> 
                     "accountBalance": good.goods.quantity
                 }
                 items.append(item)
-
+    logger.debug('закончил make_ozon_write_off_items')
     return items

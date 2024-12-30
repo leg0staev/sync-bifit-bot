@@ -9,14 +9,15 @@ class MakeWriteOffDocRequest(Request):
                  token: str,
                  org_id: str,
                  trade_obj_id: str,
-                 postings,
-                 products) -> None:
+                 doc_num: str,
+                 items: list[dict]) -> None:
         super().__init__()
         self.headers = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {token}'
+            'Authorization': f'Bearer {token}',
+            'Accept': '*/*'
         }
-        self.url = url
+        self.url = f'{url}/protected/{org_id}/write_off_document'
 
         tz = timezone(timedelta(hours=3))
         now = datetime.now(tz)
@@ -34,7 +35,7 @@ class MakeWriteOffDocRequest(Request):
                 "documentDate": current_time_ms,
                 "status": "NEW",
                 "responsiblePerson": "Легостаева Анастасия",
-                "documentNumber": None,
+                "documentNumber": doc_num,
                 "description": None,
                 "relatedDocuments": [],
                 "writeOffArticleId": None,
@@ -43,23 +44,7 @@ class MakeWriteOffDocRequest(Request):
                 "sellingAmount": None,
                 "automatically": False
             },
-            "items": [
-                # {
-                #     "id": None,
-                #     "documentId": None,
-                #     "nomenclatureId": 31195950,
-                #     "vendorCode": "ali-vk-oz-ya",
-                #     "barcode": "4673722702512",
-                #     "unitCode": "796",
-                #     "purchasePrice": 220.5,
-                #     "sellingPrice": 420,
-                #     "amount": 220.5,
-                #     "currencyCode": None,
-                #     "nomenclatureFeatures": [],
-                #     "quantity": 0,
-                #     "accountBalance": 2
-                # }
-            ]
+            "items": items
         }
 
 

@@ -2,22 +2,14 @@ import asyncio
 import time
 from datetime import datetime, timezone, timedelta
 
-from Clases.ApiMarketplaces.Ozon.Posting import Posting
 from Clases.BifitApi.Contactor import Contactor
 from Clases.BifitApi.ContactorsRequest import ContactorsRequest
-from Clases.BifitApi.Good import Good
-from Clases.BifitApi.Goods import Goods
-from Clases.BifitApi.GoodsListReq import GoodsListReq
-from Clases.BifitApi.Nomenclature import Nomenclature
-from Clases.BifitApi.OrgListReq import *
-from Clases.BifitApi.Organization import *
+from Clases.BifitApi.MakeWriteOffDocRequest import MakeWriteOffDocRequest
 from Clases.BifitApi.ParentNomenclaturesReq import *
 from Clases.BifitApi.SendCSVStocksRequest import SendCSVStocksRequest
-from Clases.BifitApi.TradeObjListReq import *
-from Clases.BifitApi.TradeObject import TradeObject
 from Exceptions.ResponseContentException import ResponseContentException
 from Exceptions.ResponseStatusException import ResponseStatusException
-from logger import logger
+from methods import *
 from methods_async import get_pic_url
 
 
@@ -509,7 +501,7 @@ class BifitSession(Request):
         return yab_goods_list
 
     async def get_yml_async(self) -> dict:
-        logger.debug(f'get_yml_async started')
+        logger.debug(f'начал get_yml_async')
 
         my_site_url = 'https://pronogti.store'
 
@@ -522,7 +514,7 @@ class BifitSession(Request):
         if isinstance(yab_goods_set, set):
             yab_products_list = await self.get_yab_goods_list(yab_goods_set)
         else:
-            logger.debug(f'get_yml finished with error')
+            logger.debug(f'get_yml закончен с ошибкой')
             return {}
 
         categories_content = ''
@@ -592,55 +584,27 @@ class BifitSession(Request):
         </shop>
     </yml_catalog>
 """
-        logger.debug(f'get_yml finished')
+        logger.debug(f'закончил get_yml')
         return errors
 
-    async def make_write_off_doc(self, ozon_products: set[Good], ozon_postings: list[Posting]):
+    async def make_ozon_write_off_doc_async(self, ozon_products: set[Good], ozon_postings: list[Posting]):
+        logger.debug(f'начал make_ozon_write_off_doc_async')
+        coroutines = set()
 
-        tz = timezone(timedelta(hours=3))
-        now = datetime.now(tz)
-        timestamp = int(now.timestamp())
-        current_time_ms = str(timestamp * 1000)
+        url = BifitSession.BIFIT_API_URL
+        token = await self.token
+        org = await self.org
+        trade_obj = await self.trade_obj
 
         for posting in ozon_postings:
+            posting_items = make_ozon_write_off_items(ozon_products, posting)
 
+            write_off_doc_req = MakeWriteOffDocRequest(url=url,
+                                                       token=token,
+                                                       org_id=org.id,
+                                                       trade_obj_id=trade_obj.id,
+                                                       doc_num=f'ozon {posting.posting_number}',
+                                                       items=posting_items)
+            coroutines.add(write_off_doc_req.send_post_async())
 
-
-            data = {
-                "document": {
-                    "id": None,
-                    "visible": True,
-                    "created": current_time_ms,
-                    "changed": current_time_ms,
-                    "organizationId": self.organisation.id,
-                    "tradeObjectId": self.trade_object.id,
-                    "documentDate": current_time_ms,
-                    "status": "NEW",
-                    "responsiblePerson": "Легостаева Анастасия",
-                    "documentNumber": f"OZON {posting.posting_number}",
-                    "description": "postman",
-                    "relatedDocuments": [],
-                    "writeOffArticleId": None,
-                    "contractorId": None,
-                    "purchaseAmount": None,
-                    "sellingAmount": None,
-                    "automatically": False
-                },
-                "items": [
-                    {
-                        "id": None,
-                        "documentId": None,
-                        "nomenclatureId": 31195950,
-                        "vendorCode": "ali-vk-oz-ya",
-                        "barcode": "4673722702512",
-                        "unitCode": "796",
-                        "purchasePrice": 220.5,
-                        "sellingPrice": 420,
-                        "amount": 220.5,
-                        "currencyCode": None,
-                        "nomenclatureFeatures": [],
-                        "quantity": 0,
-                        "accountBalance": 2
-                    }
-                ]
-            }
+        return await asyncio.gather(*coroutines)

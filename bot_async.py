@@ -179,23 +179,25 @@ async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE
     coroutines.add(bifit_session.get_bifit_prod_by_marker(('oz',)))
     coroutines.add(ozon_session.get_all_postings_async())
 
-    ozon_products, ozon_postings = await asyncio.gather(*coroutines)
+    products, ozon_postings = await asyncio.gather(*coroutines)
 
-    if 'error' in ozon_products:
-        await update.message.reply_text(f'Ошибка от Бифит: {ozon_products.get("error")}')
+    if 'error' in products:
+        await update.message.reply_text(f'Ошибка от Бифит: {products.get("error")}')
         return None
     if 'error' in ozon_postings:
         await update.message.reply_text(f'Ошибка от Озон. не удалось запросить отправления')
         return None
 
+    make_docs_resp = await bifit_session.make_ozon_write_off_doc_async(products.get('oz'), ozon_postings)
 
-    write_off_items = make_ozon_write_off_items(ozon_products, ozon_postings)
-
-
+    if 'error' in make_docs_resp:
+        await update.message.reply_text(f'не смог создать документ: {make_docs_resp.get("error")}')
+        return None
+    await update.message.reply_text(f'создал документы списания!')
 
 
 async def keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Просто примет клавиатуры))"""
+    """Просто пример клавиатуры))"""
     keyboard = [
         [InlineKeyboardButton("да, создать списание", callback_data='make_write_off_document')],
     ]
