@@ -68,7 +68,7 @@ class Request:
                               json_data=None,
                               files=None,
                               params=None,
-                              ) -> Dict[str, str]:
+                              ) -> Dict:
         url = url or self.url
         headers = headers or self.headers
         json_data = json_data or self.json

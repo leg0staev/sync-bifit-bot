@@ -1,6 +1,7 @@
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
+from Clases.ApiMarketplaces.Ozon.Posting import Posting
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 from Clases.ApiMarketplaces.Vk.VkApi import VkApi
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
@@ -239,3 +240,29 @@ def get_bifit_products_set(srv_resp: dict) -> set[Good] | set[str]:
     logger.debug('get_bifit_prod_by_markers закончил без ошибок')
 
     return all_prod
+
+
+def make_ozon_write_off_items(market_prod: set[Good], ozon_posting: Posting) -> list[dict]:
+    items = []
+
+    for prod in ozon_posting.products:
+        for good in market_prod:
+            if prod.offer_id == good.nomenclature.barcode:
+                item = {
+                    "id": None,
+                    "documentId": None,
+                    "nomenclatureId": good.nomenclature.id,
+                    "vendorCode": good.nomenclature.vendor_code,
+                    "barcode": good.nomenclature.barcode,
+                    "unitCode": good.nomenclature.unit_code,
+                    "purchasePrice": good.nomenclature.purchase_price,
+                    "sellingPrice": good.nomenclature.selling_price,
+                    "amount": prod.quantity * good.nomenclature.purchase_price,
+                    "currencyCode": None,
+                    "nomenclatureFeatures": [],
+                    "quantity": prod.quantity,
+                    "accountBalance": good.goods.quantity
+                }
+                items.append(item)
+
+    return items

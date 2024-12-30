@@ -2,6 +2,7 @@ import asyncio
 import time
 from datetime import datetime, timezone, timedelta
 
+from Clases.ApiMarketplaces.Ozon.Posting import Posting
 from Clases.BifitApi.Contactor import Contactor
 from Clases.BifitApi.ContactorsRequest import ContactorsRequest
 from Clases.BifitApi.Good import Good
@@ -264,7 +265,7 @@ class BifitSession(Request):
             except KeyError as e:
                 logger.error(f'Неожиданный ответ сервера. Ошибка формирования товара - {e}')
                 logger.debug('get_bifit_products_set_async finished with exception')
-                return {'error', f'ошибка формирования товара. неожиданный ответ сервера - {e}'}
+                return {'error': f'ошибка формирования товара. неожиданный ответ сервера - {e}'}
             else:
                 try:
                     markets: list[str] = product.nomenclature.vendor_code.split("-")
@@ -594,42 +595,52 @@ class BifitSession(Request):
         logger.debug(f'get_yml finished')
         return errors
 
-    async def make_write_off_doc(self, items_to_write_of):
-        data = {
-            "document": {
-                "id": None,
-                "visible": True,
-                "created": "1734556800000",
-                "changed": "1734556800000",
-                "organizationId": "1616167659097-148354427",
-                "tradeObjectId": "1616167659101-693800423",
-                "documentDate": "1734556800000",
-                "status": "NEW",
-                "responsiblePerson": "Легостаева Анастасия",
-                "documentNumber": "postman",
-                "description": "postman",
-                "relatedDocuments": [],
-                "writeOffArticleId": None,
-                "contractorId": None,
-                "purchaseAmount": None,
-                "sellingAmount": None,
-                "automatically": False
-            },
-            "items": [
-                {
-                    "id": 5523646,
-                    "documentId": 287890,
-                    "nomenclatureId": 31195950,
-                    "vendorCode": "ali-vk-oz-ya",
-                    "barcode": "4673722702512",
-                    "unitCode": "796",
-                    "purchasePrice": 220.5,
-                    "sellingPrice": 420,
-                    "amount": 220.5,
-                    "currencyCode": None,
-                    "nomenclatureFeatures": [],
-                    "quantity": 0,
-                    "accountBalance": 2
-                }
-            ]
-        }
+    async def make_write_off_doc(self, ozon_products: set[Good], ozon_postings: list[Posting]):
+
+        tz = timezone(timedelta(hours=3))
+        now = datetime.now(tz)
+        timestamp = int(now.timestamp())
+        current_time_ms = str(timestamp * 1000)
+
+        for posting in ozon_postings:
+
+
+
+            data = {
+                "document": {
+                    "id": None,
+                    "visible": True,
+                    "created": current_time_ms,
+                    "changed": current_time_ms,
+                    "organizationId": self.organisation.id,
+                    "tradeObjectId": self.trade_object.id,
+                    "documentDate": current_time_ms,
+                    "status": "NEW",
+                    "responsiblePerson": "Легостаева Анастасия",
+                    "documentNumber": f"OZON {posting.posting_number}",
+                    "description": "postman",
+                    "relatedDocuments": [],
+                    "writeOffArticleId": None,
+                    "contractorId": None,
+                    "purchaseAmount": None,
+                    "sellingAmount": None,
+                    "automatically": False
+                },
+                "items": [
+                    {
+                        "id": None,
+                        "documentId": None,
+                        "nomenclatureId": 31195950,
+                        "vendorCode": "ali-vk-oz-ya",
+                        "barcode": "4673722702512",
+                        "unitCode": "796",
+                        "purchasePrice": 220.5,
+                        "sellingPrice": 420,
+                        "amount": 220.5,
+                        "currencyCode": None,
+                        "nomenclatureFeatures": [],
+                        "quantity": 0,
+                        "accountBalance": 2
+                    }
+                ]
+            }

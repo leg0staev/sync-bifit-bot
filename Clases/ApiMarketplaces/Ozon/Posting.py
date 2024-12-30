@@ -24,7 +24,7 @@ class Posting:
         self.delivering_date = data.get('delivering_date')
         self.cancellation = Cancellation(data.get('cancellation'))
         self.customer = data.get('customer')
-        self.products = [PostingProduct(item) for item in data.get('products')]
+        self.products = {PostingProduct(item) for item in data.get('products')}
         self.addressee = data.get('addressee')
         self.barcodes = data.get('barcodes')
         self.analytics_data = data.get('analytics_data')

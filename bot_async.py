@@ -10,8 +10,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 from fastapi_app.app import app
-from methods import parse_calculation, get_write_off_msg, products_write_off, \
-    goods_list_to_csv_str, get_market_goods_dict, get_bifit_products_set
+from methods import *
 from methods_async import *
 from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
@@ -180,8 +179,17 @@ async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE
     coroutines.add(bifit_session.get_bifit_prod_by_marker(('oz',)))
     coroutines.add(ozon_session.get_all_postings_async())
 
-    ozon_products, ozon_postings = asyncio.gather(*coroutines)
+    ozon_products, ozon_postings = await asyncio.gather(*coroutines)
 
+    if 'error' in ozon_products:
+        await update.message.reply_text(f'Ошибка от Бифит: {ozon_products.get("error")}')
+        return None
+    if 'error' in ozon_postings:
+        await update.message.reply_text(f'Ошибка от Озон. не удалось запросить отправления')
+        return None
+
+
+    write_off_items = make_ozon_write_off_items(ozon_products, ozon_postings)
 
 
 
