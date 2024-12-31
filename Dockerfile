@@ -1,5 +1,7 @@
 FROM python:slim-bookworm
 
+RUN apt-get update && apt-get install -y gcc
+
 RUN mkdir /bot
 WORKDIR /bot
 
