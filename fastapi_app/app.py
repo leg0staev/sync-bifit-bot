@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import FastAPI, Response
 
 from Clases.BifitApi.Contactor import Contactor
-from bifit_session import bifit_session
+from sessions import bifit_session
 from logger import logger
 from methods_async import get_pic_url
 
@@ -21,9 +21,9 @@ async def get_yml():
     logger.debug(f'get_yml started')
     current_time = datetime.now(tz)
 
-    products_response = await bifit_session.get_bifit_prod_by_markers(('yab',))
+    products_response = await bifit_session.get_bifit_prod_by_marker(('yab',))
 
-    yab_products_list = await bifit_session.get_yab_goods(products_response.get('yab'))
+    yab_products_list = await bifit_session.get_yab_goods_list(products_response.get('yab'))
 
     categories_content = ''
     offers_content = ''

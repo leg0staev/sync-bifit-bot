@@ -1,4 +1,10 @@
 class Product:
+    __slots__ = ('product_id',
+                 'product_name',
+                 'product_sku',
+                 'product_ali_id',
+                 'product_quantity')
+
     def __init__(self,
                  product_id: int,
                  product_name: str,

@@ -6,16 +6,13 @@ import threading
 
 import uvicorn
 # from logger import logger
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
-from Exceptions.ResponseContentException import ResponseContentException
-from Exceptions.ResponseStatusException import ResponseStatusException
-from bifit_session import bifit_session
 from fastapi_app.app import app
-from methods import parse_calculation, get_write_off_msg, products_write_off, \
-    goods_list_to_csv_str
+from methods import *
 from methods_async import *
+from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
     OZON_CLIENT_ID, OZON_ADMIN_KEY, BOT_TOKEN
 
@@ -31,6 +28,7 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс списания товаров из склада бифит-кассы"""
     logger.debug("write_off started")
     calculation = update.message.text
+    logger.debug(f'получено сообщение - {calculation}')
     await update.message.reply_text("это что рассчет? сейчас проверю..")
 
     products_to_remove, without_barcode, without_quantity = parse_calculation(calculation)
@@ -48,10 +46,17 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = get_write_off_msg(products_to_remove, without_barcode, without_quantity)
 
     await update.message.reply_text(message)
-    await update.message.reply_text("сейчас запрошу актуальные остатки из Бифит")
-    *_, goods_set = await bifit_session.get_bifit_products_async()
-    if goods_set is None:
-        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка.")
+    await update.message.reply_text("отправляю запрос на актуальные остатки из Бифит")
+
+    server_response = await bifit_session.get_all_bifit_prod_response()
+    if 'error' in server_response:
+        await update.message.reply_text(f"сервер вернул ошибку - {server_response.get('error')}")
+        return None
+    await update.message.reply_text(f"получил ответ от сервера, пробую прочитать")
+
+    goods_set = get_bifit_products_set(server_response)
+    if 'error' in goods_set:
+        await update.message.reply_text(f"не могу прочитать товары. неожиданный ответ сервера")
         return None
 
     await update.message.reply_text("получил товары из Бифит, минусую.")
@@ -79,66 +84,23 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                         f'{outdated_goods_set}')
 
 
-async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
-
-    try:
-        ya_goods, ali_goods, vk_goods, ozon_goods, *_ = await bifit_session.get_bifit_products_async()
-    except ResponseStatusException:
-        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка статуса сервера."
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
-    except ResponseContentException:
-        await update.message.reply_text(f"не получил список товаров от Бифит. Неожиданный ответ сервера."
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
-
-    await update.message.reply_text("получил товары из бифит")
-
-    coroutines = []
-
-    if ya_goods:
-        await update.message.reply_text("Нашел товары для Яндекс")
-        coroutines.append(send_to_yandex_async(YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ya_goods))
-
-    if ozon_goods:
-        await update.message.reply_text("Нашел товары для Озон")
-        coroutines.append(send_to_ozon_async(OZON_ADMIN_KEY, OZON_CLIENT_ID, ozon_goods))
-
-    if ali_goods:
-        await update.message.reply_text("Нашел товары для Ali")
-        coroutines.append(send_to_ali_async(ALI_TOKEN, ali_goods))
-
-    if vk_goods:
-        await update.message.reply_text("Нашел товары для ВК")
-        coroutines.append(send_to_vk_async(VK_TOKEN, VK_OWNER_ID, VK_API_VER, vk_goods))
-
-    if coroutines:
-        await update.message.reply_text("Отправляю все остатки")
-        errors = await asyncio.gather(*coroutines)
-        if any(errors):
-            await update.message.reply_text("возникли ошибки при отправке данных:\n"
-                                            "{Яндекс}, {Озон}, {Али}, {Вк}"
-                                            f"{errors}")
-        else:
-            await update.message.reply_text("Отправка прошла без ошибок!")
-    else:
-        await update.message.reply_text("Нет товаров для отправки.")
-
-
 async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
-    market_prod_dict = await bifit_session.get_bifit_prod_by_markers(("ya", "oz", "ali", "vk"))
+    market_prod_dict = await bifit_session.get_bifit_prod_by_marker(("ya", "oz", "ali", "vk"))
 
-    if market_prod_dict:
+    if 'error' in market_prod_dict:
+        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка"
+                                        f" тапни /sync чтобы попробовать еще раз")
+        return None
 
+    else:
         await update.message.reply_text("получил товары из бифит")
 
-        ya_goods: dict[str, int] = market_prod_dict.get('ya')
-        ali_goods: dict[str, int] = market_prod_dict.get('ali')
-        vk_goods: dict[str, int] = market_prod_dict.get('vk')
-        ozon_goods: dict[str, int] = market_prod_dict.get('oz')
+        ya_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('ya'))
+        ali_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('ali'))
+        vk_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('vk'))
+        ozon_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('oz'))
 
         coroutines = set()
 
@@ -167,19 +129,15 @@ async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                                                 f"{errors}")
             else:
                 await update.message.reply_text("Отправка прошла без ошибок!")
-    else:
-        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка"
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
 
 
 async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Выводит в бот ожидаемые ссылки на картинки 15 последних измененных товаров"""
     TAIL = -15
 
-    products_response = await bifit_session.get_bifit_prod_by_markers(('yab',))
+    products_response = await bifit_session.get_bifit_prod_by_marker(('yab',))
 
-    yab_products_list = await bifit_session.get_yab_goods(products_response.get('yab'))
+    yab_products_list = await bifit_session.get_yab_goods_list(products_response.get('yab'))
 
     last_changed_list = yab_products_list[TAIL:]
 
@@ -192,7 +150,7 @@ async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name, to_bot=True)
 
         message += f"{str(product)}: картинка - {pic_url}\n"
-        
+
     await update.message.reply_text(message)
 
 
@@ -210,6 +168,59 @@ async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text('YML обновлен без ошибок')
 
 
+async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Создает документы списания исходя из заказов на маркетах (пока только озон)"""
+    await update.message.reply_text('запрашиваю отправления в ОЗОН и товары в Бифит')
+
+    coroutines = []
+    ozon_session = OzonApiAsync(OZON_ADMIN_KEY, OZON_CLIENT_ID)
+    coroutines.append(bifit_session.get_bifit_prod_by_marker(('oz',)))
+    coroutines.append(ozon_session.get_all_postings_async())
+
+    products, ozon_postings = await asyncio.gather(*coroutines)
+
+    if 'error' in products:
+        await update.message.reply_text(f'Ошибка от Бифит: {products.get("error")}')
+        return None
+    if 'error' in ozon_postings:
+        await update.message.reply_text(f'Ошибка от Озон. не удалось запросить отправления')
+        return None
+
+    make_docs_responses = await bifit_session.make_ozon_write_off_doc_async(products.get('oz'), ozon_postings)
+
+    for resp in make_docs_responses:
+        if 'error' in resp:
+            await update.message.reply_text(f'не смог создать документ: {resp.get("error")}')
+        else:
+            await update.message.reply_text(f'создал документ списания!')
+
+
+async def keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Просто пример клавиатуры))"""
+    keyboard = [
+        [InlineKeyboardButton("да, создать списание", callback_data='make_write_off_document')],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text('создать документы списания в бифит-касса?', reply_markup=reply_markup)
+
+
+async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    await query.answer()
+
+    # Добавьте свою логику для make_document
+    if data == 'make_write_off_document':
+        await query.edit_message_text(text="хорошо, создаю списание")
+        await make_write_off_document(update, context)
+
+
+async def make_write_off_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    # Ваша логика для make_document
+    await query.edit_message_text(text="Документы созданы!")
+
+
 async def main_bot_async() -> None:
     """Старт бота"""
     # Create the Application and pass it your bot's token.
@@ -219,8 +230,10 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("pic_links", get_yab_pic_names))
     application.add_handler(CommandHandler("get_yml", get_new_yml))
+    application.add_handler(CommandHandler("make_write_off_docs", make_write_off_docs))
     application.add_handler(CommandHandler("sync", synchronization))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
+    application.add_handler(CallbackQueryHandler(handle_callbacks))
     # on non command i.e message - echo the message on Telegram
     # application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 

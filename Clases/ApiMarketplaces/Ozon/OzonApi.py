@@ -10,8 +10,9 @@ from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 
 class OzonApi:
     GET_ALL_PRODUCTS_URL = 'https://api-seller.ozon.ru/v2/product/list'
-    GET_ALL_WAREHOUSES = 'https://api-seller.ozon.ru/v1/warehouse/list'
+    GET_ALL_WAREHOUSES_URL = 'https://api-seller.ozon.ru/v1/warehouse/list'
     SEND_REMAINS_URL = 'https://api-seller.ozon.ru/v2/products/stocks'
+    GET_ALL_POSTINGS_URL = 'https://api-seller.ozon.ru/v3/posting/fbs/unfulfilled/list'
 
     def __init__(self, token: str, id_: str) -> None:
 
@@ -59,7 +60,7 @@ class OzonApi:
 
     def get_warehouses(self):
 
-        response = requests.post(url=OzonApi.GET_ALL_WAREHOUSES, headers=self.headers)
+        response = requests.post(url=OzonApi.GET_ALL_WAREHOUSES_URL, headers=self.headers)
 
         try:
             response.raise_for_status()

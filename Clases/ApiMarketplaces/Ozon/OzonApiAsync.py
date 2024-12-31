@@ -1,8 +1,10 @@
 import json
+from datetime import datetime, timezone, timedelta
 
 import aiohttp
 
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
+from Clases.ApiMarketplaces.Ozon.Posting import Posting
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 from logger import logger
 
@@ -46,7 +48,7 @@ class OzonApiAsync(OzonApi):
                         response.raise_for_status()
                     except aiohttp.ClientResponseError as e:
                         logger.error(f'REQUEST ERROR {e}')
-                        response_data.append({'error': str(e)})
+                        response_data.update({'error': str(e)})
 
                     response_json = await response.json()
                     errors = OzonApi.check_sand_remains_response(response_json)
@@ -59,8 +61,8 @@ class OzonApiAsync(OzonApi):
         logger.debug('начал get_warehouses_async в озон')
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(OzonApi.GET_ALL_WAREHOUSES, headers=self.headers) as response:
-                logger.info(f'HTTP Request: POST {OzonApi.GET_ALL_WAREHOUSES}, {response.status}')
+            async with session.post(OzonApi.GET_ALL_WAREHOUSES_URL, headers=self.headers) as response:
+                logger.info(f'HTTP Request: POST {OzonApi.GET_ALL_WAREHOUSES_URL}, {response.status}')
                 try:
                     response.raise_for_status()
                 except aiohttp.ClientResponseError as e:
@@ -69,3 +71,61 @@ class OzonApiAsync(OzonApi):
                     return {'error': f'Ошибка запроса складов в озон - {e}'}
                 logger.debug('закончил get_warehouses_async в озон успешно')
                 return await response.json()
+
+    async def get_all_postings_async(self) -> list[str] | list[Posting]:
+        """метод получения всех отправлений"""
+        logger.debug('начал get_all_postings_async в озон')
+
+        T_DELTA = 7  # отрезок времени (дни) за который надо найти заказы
+        dir_ = "desc"  # сортировка по убыванию
+        status = 'awaiting_deliver'  # статус - ожидает отправки
+
+        now = datetime.now(timezone.utc)
+        cutoff_to = now.strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
+        # logger.debug(f'{cutoff_to=}')
+        cutoff_from = (now - timedelta(days=T_DELTA)).strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
+        # logger.debug(f'{cutoff_from=}')
+        data = {
+            "dir": dir_,
+            "filter": {
+                "cutoff_from": cutoff_from,
+                "cutoff_to": cutoff_to,
+                # "delivery_method_id": [],
+                "is_quantum": False,
+                # "provider_id": [],
+                "status": status
+                # "warehouse_id": []
+            },
+            "limit": 100,
+            "offset": 0,
+            "with": {
+                "analytics_data": False,
+                "barcodes": False,
+                "financial_data": False,
+                "translit": False
+            }
+        }
+        # logger.debug(f'{data=}')
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(OzonApi.GET_ALL_POSTINGS_URL,
+                                    headers=self.headers,
+                                    data=json.dumps(data)) as response:
+                logger.info(f'HTTP Request: POST {OzonApi.GET_ALL_POSTINGS_URL}, {response.status}')
+                try:
+                    response.raise_for_status()
+                except aiohttp.ClientResponseError as e:
+                    logger.error(f'REQUEST get_all_postings_async ERROR {e}')
+                    logger.debug('закончил get_all_postings_async в озон с ошибкой сервера')
+                    return ['error']
+
+                else:
+                    logger.debug('закончил get_all_postings_async в озон успешно')
+                    response_json = await response.json()
+                    result = response_json.get('result')
+                    if result is None:
+                        logger.error('Ошибка в ответе сервера на запрос отправлений Озон')
+                        logger.debug('закончил get_all_postings_async в озон с ошибкой в ответе сервера')
+                        return ['error']
+                    logger.debug('закончил get_all_postings_async в озон. Получил отправления')
+                    return [Posting(item) for item in result.get('postings')]

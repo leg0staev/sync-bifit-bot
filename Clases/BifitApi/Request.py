@@ -68,12 +68,18 @@ class Request:
                               json_data=None,
                               files=None,
                               params=None,
-                              ) -> Dict[str, str]:
+                              ) -> Dict:
         url = url or self.url
         headers = headers or self.headers
         json_data = json_data or self.json
         files = files or self.files
         params = params or self.query_params
+
+        logger.debug(f'\n{url=}\n'
+                     f'{headers=}\n'
+                     f'{json_data=}\n'
+                     f'{files=}\n'
+                     f'{params=}\n')
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url=url,
@@ -82,14 +88,14 @@ class Request:
                                     data=files,
                                     params=params) as response:
                 logger.info(f'HTTP async Request: POST {url}, {response.status}')
+                response_json = await response.json()
 
                 try:
                     response.raise_for_status()
-                except aiohttp.ClientResponseError as e:
-                    logger.error(f'REQUEST ERROR {e}')
-                    return {'error': str(e)}
+                except aiohttp.ClientResponseError:
+                    logger.error(f'REQUEST ERROR {response_json.get("message")}')
+                    return {'error': response_json.get("message")}
 
-                response_json = await response.json()
                 return response_json
 
     async def send_get_async(self, url=None, headers=None, params=None) -> dict[str, bytes] | dict[str, str]:
@@ -109,4 +115,3 @@ class Request:
                     image_data = await response.read()
                     return {'image_data': image_data}
                 return await response.json()
-

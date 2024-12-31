@@ -1,7 +1,7 @@
 class Contactor:
     """Класс поставщика Бифит-кассы"""
     def __init__(self, data: dict) -> None:
-        self.id = data.get("id")
+        self.id = int(data.get("id"))
         self.organization_id = data.get("organizationId")
         self.external_id = data.get("externalId")
         self.external_code = data.get("externalCode")

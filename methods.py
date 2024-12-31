@@ -1,6 +1,7 @@
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
+from Clases.ApiMarketplaces.Ozon.Posting import Posting
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 from Clases.ApiMarketplaces.Vk.VkApi import VkApi
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
@@ -215,5 +216,56 @@ def send_to_ozon(ozon_admin_key: str, ozon_client_id: str, ozon_goods_dict: dict
     return ozon_send_remains_response
 
 
-def form_name(name: str) -> str:
-    ...
+def get_market_goods_dict(goods_set: set[Good]) -> dict[str, int]:
+    return {good.nomenclature.barcode: good.goods.quantity for good in goods_set}
+
+
+def get_bifit_products_set(srv_resp: dict) -> set[Good] | set[str]:
+    logger.debug('начал get_bifit_products_set')
+    all_prod = set()
+    try:
+        for item in srv_resp:
+            try:
+                product = Good(Goods(item['goods']), Nomenclature(item['nomenclature']))
+            except KeyError as e:
+                logger.error(f'Неожиданный ответ сервера. Ошибка формирования товара - {e}')
+                logger.debug('get_bifit_products_set завершил с ошибкой')
+                return {'error', f'ошибка формирования товара. неожиданный ответ сервера - {e}'}
+            else:
+                all_prod.add(product)
+
+    except TypeError as e:
+        logger.error(f'Неожиданный ответ сервера - {e}')
+        return {'error', f'ошибка формирования списка товаров. неожиданный ответ сервера - {e}'}
+
+    logger.debug('get_bifit_prod_by_markers закончил без ошибок')
+
+    return all_prod
+
+
+def make_ozon_write_off_items(market_prod: set[Good], ozon_posting: Posting) -> list[dict]:
+    logger.debug('начал make_ozon_write_off_items')
+    items = []
+
+    for prod in ozon_posting.products:
+        for good in market_prod:
+            if prod.offer_id == good.nomenclature.barcode:
+                item = {
+                    "id": None,
+                    "documentId": None,
+                    "nomenclatureId": good.nomenclature.id,
+                    "vendorCode": good.nomenclature.vendor_code,
+                    "barcode": good.nomenclature.barcode,
+                    "unitCode": good.nomenclature.unit_code,
+                    "purchasePrice": good.nomenclature.purchase_price,
+                    "sellingPrice": good.nomenclature.selling_price,
+                    "amount": prod.quantity * good.nomenclature.purchase_price,
+                    "currencyCode": None,
+                    "nomenclatureFeatures": [],
+                    "quantity": prod.quantity,
+                    "accountBalance": good.goods.quantity
+                }
+                items.append(item)
+                break
+    logger.debug('закончил make_ozon_write_off_items')
+    return items
