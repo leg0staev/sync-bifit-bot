@@ -76,7 +76,7 @@ class OzonApiAsync(OzonApi):
         """метод получения всех отправлений"""
         logger.debug('начал get_all_postings_async в озон')
 
-        T_DELTA = 7  # отрезок времени за который надо найти заказы
+        T_DELTA = 7  # отрезок времени (дни) за который надо найти заказы
         dir_ = "desc"  # сортировка по убыванию
         status = 'awaiting_deliver'  # статус - ожидает отправки
 

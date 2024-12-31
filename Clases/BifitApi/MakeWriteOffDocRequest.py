@@ -10,7 +10,8 @@ class MakeWriteOffDocRequest(Request):
                  org_id: str,
                  trade_obj_id: str,
                  doc_num: str,
-                 items: list[dict]) -> None:
+                 items: list[dict],
+                 params: dict) -> None:
         super().__init__()
         self.headers = {
             'Content-Type': 'application/json',
@@ -19,12 +20,14 @@ class MakeWriteOffDocRequest(Request):
         }
         self.url = f'{url}/protected/{org_id}/write_off_document'
 
+        self.query_params = params
+
         tz = timezone(timedelta(hours=3))
         now = datetime.now(tz)
         timestamp = int(now.timestamp())
         current_time_ms = str(timestamp * 1000)
 
-        self.data = {
+        self.json = {
             "document": {
                 "id": None,
                 "visible": True,

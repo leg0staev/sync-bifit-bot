@@ -587,7 +587,12 @@ class BifitSession(Request):
         logger.debug(f'закончил get_yml')
         return errors
 
-    async def make_ozon_write_off_doc_async(self, ozon_products: set[Good], ozon_postings: list[Posting]):
+    async def make_ozon_write_off_doc_async(
+            self,
+            ozon_products: set[Good],
+            ozon_postings: list[Posting],
+            execute: bool = False  # нужно ли проводить документ
+    ):
         logger.debug(f'начал make_ozon_write_off_doc_async')
         coroutines = set()
 
@@ -595,6 +600,7 @@ class BifitSession(Request):
         token = await self.token
         org = await self.org
         trade_obj = await self.trade_obj
+        params = {'execute': str(execute)}
 
         for posting in ozon_postings:
             posting_items = make_ozon_write_off_items(ozon_products, posting)
@@ -604,7 +610,8 @@ class BifitSession(Request):
                                                        org_id=org.id,
                                                        trade_obj_id=trade_obj.id,
                                                        doc_num=f'ozon {posting.posting_number}',
-                                                       items=posting_items)
+                                                       items=posting_items,
+                                                       params=params)
             coroutines.add(write_off_doc_req.send_post_async())
 
         return await asyncio.gather(*coroutines)

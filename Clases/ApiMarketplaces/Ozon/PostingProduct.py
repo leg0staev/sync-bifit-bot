@@ -5,7 +5,7 @@ class PostingProduct:
 
     def __init__(self, product_data: dict) -> None:
         self.price = product_data.get("price")
-        self.offer_id = int(product_data.get("offer_id"))
+        self.offer_id = product_data.get("offer_id")
         self.name = product_data.get("name")
         self.sku = product_data.get("sku")
         self.quantity = product_data.get("quantity")

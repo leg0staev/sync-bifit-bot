@@ -266,5 +266,6 @@ def make_ozon_write_off_items(market_prod: set[Good], ozon_posting: Posting) -> 
                     "accountBalance": good.goods.quantity
                 }
                 items.append(item)
+                break
     logger.debug('закончил make_ozon_write_off_items')
     return items

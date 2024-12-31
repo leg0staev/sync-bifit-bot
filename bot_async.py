@@ -169,15 +169,13 @@ async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Создает документы списания исходя из заказов на маркетах"""
+    """Создает документы списания исходя из заказов на маркетах (пока только озон)"""
     await update.message.reply_text('запрашиваю отправления в ОЗОН и товары в Бифит')
 
-    coroutines = set()
+    coroutines = []
     ozon_session = OzonApiAsync(OZON_ADMIN_KEY, OZON_CLIENT_ID)
-    # bifit_products = await bifit_session.get_bifit_prod_by_markers()
-    # ozon_postings = await ozon_session.get_all_postings_async()
-    coroutines.add(bifit_session.get_bifit_prod_by_marker(('oz',)))
-    coroutines.add(ozon_session.get_all_postings_async())
+    coroutines.append(bifit_session.get_bifit_prod_by_marker(('oz',)))
+    coroutines.append(ozon_session.get_all_postings_async())
 
     products, ozon_postings = await asyncio.gather(*coroutines)
 
@@ -188,12 +186,13 @@ async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f'Ошибка от Озон. не удалось запросить отправления')
         return None
 
-    make_docs_resp = await bifit_session.make_ozon_write_off_doc_async(products.get('oz'), ozon_postings)
+    make_docs_responses = await bifit_session.make_ozon_write_off_doc_async(products.get('oz'), ozon_postings)
 
-    if 'error' in make_docs_resp:
-        await update.message.reply_text(f'не смог создать документ: {make_docs_resp.get("error")}')
-        return None
-    await update.message.reply_text(f'создал документы списания!')
+    for resp in make_docs_responses:
+        if 'error' in resp:
+            await update.message.reply_text(f'не смог создать документ: {resp.get("error")}')
+        else:
+            await update.message.reply_text(f'создал документ списания!')
 
 
 async def keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -231,7 +230,7 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("pic_links", get_yab_pic_names))
     application.add_handler(CommandHandler("get_yml", get_new_yml))
-    application.add_handler(CommandHandler("get_ozon_postings", make_write_off_docs))
+    application.add_handler(CommandHandler("make_write_off_docs", make_write_off_docs))
     application.add_handler(CommandHandler("sync", synchronization))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
     application.add_handler(CallbackQueryHandler(handle_callbacks))
