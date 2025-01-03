@@ -4,6 +4,7 @@
 import asyncio
 import threading
 
+import openpyxl
 import uvicorn
 # from logger import logger
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -48,13 +49,8 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(message)
     await update.message.reply_text("отправляю запрос на актуальные остатки из Бифит")
 
-    server_response = await bifit_session.get_all_bifit_prod_response()
-    if 'error' in server_response:
-        await update.message.reply_text(f"сервер вернул ошибку - {server_response.get('error')}")
-        return None
-    await update.message.reply_text(f"получил ответ от сервера, пробую прочитать")
+    goods_set = bifit_session.get_all_bifit_prod()
 
-    goods_set = get_bifit_products_set(server_response)
     if 'error' in goods_set:
         await update.message.reply_text(f"не могу прочитать товары. неожиданный ответ сервера")
         return None
@@ -82,6 +78,27 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                         'Отправь фото эих товаров @c0m_a, чтобы '
                                         'он списал вручную!\n'
                                         f'{outdated_goods_set}')
+
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает файл xlsx с ценами
+    важно чтобы колонки назывались 'name', 'barcode', 'selling_price' """
+
+    excel_file_path = 'received_file.xlsx'
+    # Получаем файл
+    file = await context.bot.getFile(update.message.document.file_id)
+    await file.download_to_drive(excel_file_path)
+
+    # Получаем товары из Бифит
+    all_prod = bifit_session.get_all_bifit_prod()
+
+    try:
+        for new_good in read_xlsx(file_path):
+            for prod in all_prod:
+                if new_good.barcode == prod.nomenclature.barcode:
+                    ...
+    except ValueError as e:
+        await update.message.reply_text(f"Ошибка!:\n {e}")
 
 
 async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -205,6 +222,7 @@ async def keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка нажатий на клавиатуру"""
     query = update.callback_query
     data = query.data
     await query.answer()
@@ -232,6 +250,9 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("get_yml", get_new_yml))
     application.add_handler(CommandHandler("make_write_off_docs", make_write_off_docs))
     application.add_handler(CommandHandler("sync", synchronization))
+    application.add_handler(
+        MessageHandler(filters.Document.MimeType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                       handle_document))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
     application.add_handler(CallbackQueryHandler(handle_callbacks))
     # on non command i.e message - echo the message on Telegram

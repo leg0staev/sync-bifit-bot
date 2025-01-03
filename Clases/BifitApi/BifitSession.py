@@ -200,14 +200,12 @@ class BifitSession(Request):
         return await goods_list_request.send_post_async()
 
     async def get_all_bifit_prod(self) -> set[Good] | set[str]:
-        """Получает список всех товаров из склада Бифит-кассы"""
+        """Получает множество всех товаров из склада Бифит-кассы"""
         logger.debug('начал get_all_bifit_prod')
         # Получение токена и других необходимых данных
         token = await self.token
         org = await self.org
         trade_obj = await self.trade_obj
-
-        all_products: set[Good] = set()
 
         goods_list_request = GoodsListReq(
             url=BifitSession.GOODS_LIST_URL,
@@ -219,30 +217,7 @@ class BifitSession(Request):
         logger.debug('Отправляю запрос на получение всех товаров склада Бифит-кассы')
         goods_list_response = await goods_list_request.send_post_async()
 
-        if 'error' in goods_list_response:
-            logger.error(f'Ошибка на этапе запроса списка товаров - {goods_list_response}')
-            return {'error', f'сервер вернул ошибку - {goods_list_response}'}
-
-        logger.debug('товары получил. пробую прочитать')
-
-        try:
-            for item in goods_list_response:
-                try:
-                    product = Good(Goods(item['goods']), Nomenclature(item['nomenclature']))
-                except KeyError as e:
-                    logger.error(f'Неожиданный ответ сервера. Ошибка формирования товара - {e}')
-                    logger.debug('get_bifit_products_set_async finished with exception')
-                    return {'error', f'ошибка формирования товара. неожиданный ответ сервера - {e}'}
-                else:
-                    all_products.add(product)
-
-        except TypeError as e:
-            logger.error(f'Неожиданный ответ сервера - {e}')
-            return {'error', f'ошибка формирования списка товаров. неожиданный ответ сервера - {e}'}
-
-        logger.debug('get_bifit_prod_by_markers закончил без ошибок')
-
-        return all_products
+        return get_bifit_products_set(goods_list_response)
 
     async def get_bifit_prod_by_marker(self, markers: tuple[str]) -> dict[str, str] | dict[str, set]:
         srv_resp = await self.get_all_bifit_prod_response()
