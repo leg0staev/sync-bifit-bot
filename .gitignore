@@ -5,4 +5,5 @@
 settings.py
 /logs
 sync-bot.tar
-received_file.xlsx
+*.xlsx
+*.*.xlsx#
