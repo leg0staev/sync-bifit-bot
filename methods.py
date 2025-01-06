@@ -1,4 +1,5 @@
 from typing import Generator
+from zipfile import BadZipFile
 
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
@@ -268,13 +269,23 @@ def make_ozon_write_off_items(market_prod: set[Good], ozon_posting: Posting) -> 
     return items
 
 
-def read_xlsx(file_path_name: str):
+def read_xlsx(file_path_name: str) -> Generator:
+    """Генератор, читает файл построчно"""
     logger.debug('начал read_xlsx')
     required_fields = {'barcode', 'selling_price', 'purchase_price'}
 
     # Открываем файл
-    workbook = openpyxl.load_workbook(file_path_name)
-    sheet = workbook.active
+    try:
+        workbook = openpyxl.load_workbook(file_path_name)
+    except FileNotFoundError:
+        logger.error('не нашел xlsx')
+        return None
+    except BadZipFile:
+        logger.error('этот файл не xlsx')
+        return None
+    else:
+        logger.debug('успешно загрузил xlsx')
+        sheet = workbook.active
 
     # Получаем заголовки колонок
     headers = [cell.value for cell in sheet[1]]
@@ -284,7 +295,7 @@ def read_xlsx(file_path_name: str):
 
     if missing_fields:
         logger.error('Отсутствуют обязательные поля в файле - %s', missing_fields)
-        # raise ValueError(f"Отсутствуют обязательные поля: {missing_fields}")
+        return None
 
     # Создаем namedtuple динамически
     ExcelGood = namedtuple('Good', headers)
@@ -297,6 +308,8 @@ def read_xlsx(file_path_name: str):
 
 
 # Использование генератора
-file_path = 'received_file.xlsx'
-for good in read_xlsx(file_path):
-    print(good)
+if __name__ == '__main__':
+
+    file_path = 'received_file.xlsx'
+    for good in read_xlsx(file_path):
+        print(good)

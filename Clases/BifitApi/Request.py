@@ -98,7 +98,7 @@ class Request:
 
                 return response_json
 
-    async def send_get_async(self, url=None, headers=None, params=None) -> dict[str, bytes] | dict[str, str]:
+    async def send_get_async(self, url=None, headers=None, params=None) -> dict:
         url = url or self.url
         headers = headers or self.headers
         logger.debug(f'Sending GET request: {url=}, {headers=}, {params=}')

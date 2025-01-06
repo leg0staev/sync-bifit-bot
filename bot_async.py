@@ -91,14 +91,15 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     # Получаем товары из Бифит
     all_prod = bifit_session.get_all_bifit_prod()
-
+# убрать все что ниже в отд функ
     try:
         for new_good in read_xlsx(file_path):
-            for prod in all_prod:
-                if new_good.barcode == prod.nomenclature.barcode:
-                    ...
+            if new_good.barcode is not None:
+                for prod in all_prod:
+                    if new_good.barcode == prod.nomenclature.barcode:
+                        ...
     except ValueError as e:
-        await update.message.reply_text(f"Ошибка!:\n {e}")
+        await update.message.reply_text("Ошибка!:\n %s", e)
 
 
 async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

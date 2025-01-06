@@ -356,7 +356,7 @@ class BifitSession(Request):
             logger.debug('send_stocks finished with exception')
             raise ResponseStatusException(parent_noms_response.get('error'))
         try:
-            parent_noms_list = tuple(Nomenclature(item) for item in parent_noms_response)
+            parent_noms_list = tuple(Nomenclature(item_) for item_ in parent_noms_response)
         except KeyError as e:
             logger.error(f'Ошибка формирования родительских номенклатур.'
                          f'неожиданный ответ от сервера - {e}')
@@ -408,8 +408,8 @@ class BifitSession(Request):
         coroutines = set()
         categories = dict()
 
-        for good in goods_list:
-            coroutines.add(self.get_parent_nomenclature_async(good.nomenclature.id))
+        for good_ in goods_list:
+            coroutines.add(self.get_parent_nomenclature_async(good_.nomenclature.id))
 
         try:
             parent_nomenclatures = await asyncio.gather(*coroutines)
@@ -433,8 +433,8 @@ class BifitSession(Request):
 
         coroutines = list()
 
-        for good in goods_list:
-            coroutines.append(self.get_parent_nomenclature_async(good.nomenclature.id))
+        for good_ in goods_list:
+            coroutines.append(self.get_parent_nomenclature_async(good_.nomenclature.id))
 
         try:
             parent_nomenclatures = await asyncio.gather(*coroutines)
@@ -447,13 +447,13 @@ class BifitSession(Request):
             return {}
         else:
             logger.debug(f'{parent_nomenclatures=}')
-            return {good: parent_nomenclature for good, parent_nomenclature in zip(goods_list, parent_nomenclatures)}
+            return {good_: parent_nomenclature for good_, parent_nomenclature in zip(goods_list, parent_nomenclatures)}
 
     async def get_yab_goods_list(self, goods_set: set[Good]) -> list[dict]:
         """Формирует отсортированный по дате изменения список словарей
         {'good': Товар, 'parent_nomenclature': Родительская номенклатура, 'vendor': Поставщик}"""
         vendor_ids = list({product.nomenclature.contractor_id for product in goods_set})
-        coroutines_nomenclatures = [self.get_parent_nomenclature_async(good.nomenclature.id) for good in goods_set]
+        coroutines_nomenclatures = [self.get_parent_nomenclature_async(good_.nomenclature.id) for good_ in goods_set]
 
         try:
             vendors_dict = await self.get_vendors_async(vendor_ids)
@@ -469,9 +469,9 @@ class BifitSession(Request):
         sorted_yab_goods = sorted(list(zip(goods_set, parent_nomenclatures)),
                                   key=lambda item: item[0].nomenclature.changed)
 
-        for good, parent_nomenclature in sorted_yab_goods:
-            vendor = vendors_dict.get(good.nomenclature.contractor_id)
-            yab_goods_list.append({'good': good, 'parent_nomenclature': parent_nomenclature, 'vendor': vendor})
+        for good_, parent_nomenclature in sorted_yab_goods:
+            vendor = vendors_dict.get(good_.nomenclature.contractor_id)
+            yab_goods_list.append({'good': good_, 'parent_nomenclature': parent_nomenclature, 'vendor': vendor})
 
         return yab_goods_list
 
