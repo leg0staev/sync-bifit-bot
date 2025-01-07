@@ -1,5 +1,8 @@
+from collections import namedtuple
 from typing import Generator
 from zipfile import BadZipFile
+
+import openpyxl
 
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
@@ -18,10 +21,7 @@ from Clases.BifitApi.OrgListReq import *
 from Clases.BifitApi.Organization import *
 from Clases.BifitApi.TradeObjListReq import TradeObjListReq
 from Clases.BifitApi.TradeObject import *
-
 from logger import logger
-from collections import namedtuple
-import openpyxl
 
 
 def get_bifit_token(username: str, pswd: bytes) -> str:
@@ -298,13 +298,54 @@ def read_xlsx(file_path_name: str) -> Generator:
         return None
 
     # Создаем namedtuple динамически
-    ExcelGood = namedtuple('Good', headers)
+    ExcelGood = namedtuple('Good', ['barcode', 'selling_price', 'purchase_price'])
+
+    # Получаем индексы необходимых колонок
+    field_indices = {field: headers.index(field) for field in required_fields}
 
     # Пропускаем заголовок
     for row in sheet.iter_rows(min_row=2, values_only=True):
+        # Извлекаем значения для каждого необходимого поля
+        barcode: str = str(row[field_indices['barcode']])
+        selling_price: int = row[field_indices['selling_price']]
+        purchase_price: int = row[field_indices['purchase_price']]
+
         # Создаем namedtuple для каждой строки
-        excel_good = ExcelGood(*row)
+        excel_good = ExcelGood(barcode, selling_price, purchase_price)
         yield excel_good
+
+
+def make_price_change_items(file_name: str, bifit_prod: set[Good]) -> list[dict]:
+    logger.debug('начал make_price_change_items')
+    items = []
+
+    try:
+        for new_good in read_xlsx(file_name):
+            logger.debug('new_good= %s', new_good)
+            if new_good.barcode:
+                for prod in bifit_prod:
+                    if new_good.barcode == prod.nomenclature.barcode:
+                        item = {
+                            # "id": None,
+                            # "documentId": None,
+                            "nomenclatureId": prod.nomenclature.id,
+                            "sellingPrice": new_good.selling_price,
+                            "purchasePrice": new_good.purchase_price or 0,
+                            "oldSellingPrice": prod.nomenclature.selling_price
+                        }
+
+                        # Добавление поля 'purchasePrice' только если значение не None
+                        if new_good.purchase_price is not None:
+                            item["purchasePrice"] = new_good.purchase_price
+
+                        logger.debug('item= %s', item)
+                        items.append(item)
+
+    except ValueError:
+        logger.error('не могу получить товары из файла')
+
+    logger.debug('закончил make_price_change_items')
+    return items
 
 
 # Использование генератора

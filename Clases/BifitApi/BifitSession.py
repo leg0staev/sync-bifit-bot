@@ -4,6 +4,8 @@ from datetime import datetime, timezone, timedelta
 
 from Clases.BifitApi.Contactor import Contactor
 from Clases.BifitApi.ContactorsRequest import ContactorsRequest
+from Clases.BifitApi.ExecutePriceChangeRequest import ExecutePriceChangeRequest
+from Clases.BifitApi.MakePriceChangeRequest import MakePriceChangeRequest
 from Clases.BifitApi.MakeWriteOffDocRequest import MakeWriteOffDocRequest
 from Clases.BifitApi.ParentNomenclaturesReq import *
 from Clases.BifitApi.SendCSVStocksRequest import SendCSVStocksRequest
@@ -23,6 +25,7 @@ class BifitSession(Request):
     SEND_CSV_URL = f'{BIFIT_API_URL}/protected/goods/csv/upload'
     PARENT_NOM_URL = f'{BIFIT_API_URL}/protected/nomenclatures'
     CONTACTORS_URL = f'{BIFIT_API_URL}/protected/contractors/list'
+    MAKE_PRICE_CHANGE_DOCS_URL = f'{BIFIT_API_URL}/protected/price_change'
 
     __slots__ = (
         'username',
@@ -567,7 +570,7 @@ class BifitSession(Request):
             ozon_products: set[Good],
             ozon_postings: list[Posting],
             execute: bool = False  # нужно ли проводить документ
-    ):
+    ) -> tuple[dict]:
         logger.debug(f'начал make_ozon_write_off_doc_async')
         coroutines = set()
 
@@ -590,3 +593,41 @@ class BifitSession(Request):
             coroutines.add(write_off_doc_req.send_post_async())
 
         return await asyncio.gather(*coroutines)
+
+    async def make_price_change_docs_async(self,
+                                           ozon_products: set[Good],
+                                           file: str) -> dict | int:
+        logger.debug(f'начал make_price_change_docs_async')
+
+        url = BifitSession.MAKE_PRICE_CHANGE_DOCS_URL
+        token = await self.token
+        org = await self.org
+        trade_obj = await self.trade_obj
+        change_items = make_price_change_items(file, ozon_products)
+
+        change_price_req = MakePriceChangeRequest(url=url,
+                                                  token=token,
+                                                  org_id=org.id,
+                                                  trade_obj_id=trade_obj.id,
+                                                  items=change_items)
+
+        response = await change_price_req.send_post_async()
+
+        if isinstance(response, dict):
+            return -1
+
+        return response
+
+    async def execute_price_change_docs(self, doc_ids: list[int]):
+        logger.debug(f'начал execute_price_change_docs')
+
+        url = BifitSession.BIFIT_API_URL
+        token = await self.token
+        org = await self.org
+
+        execute_docs_req = ExecutePriceChangeRequest(url=url,
+                                                     token=token,
+                                                     org_id=org.id,
+                                                     doc_ids=doc_ids)
+
+        return await execute_docs_req.send_post_async()

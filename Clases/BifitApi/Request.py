@@ -75,11 +75,11 @@ class Request:
         files = files or self.files
         params = params or self.query_params
 
-        logger.debug(f'\n{url=}\n'
-                     f'{headers=}\n'
-                     f'{json_data=}\n'
-                     f'{files=}\n'
-                     f'{params=}\n')
+        logger.debug('\nurl=%s\n'
+                     'headers=%s\n'
+                     'json_data=%s\n'
+                     'files=%s\n'
+                     'params=%s\n', url, headers, json_data, files, params)
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url=url,
@@ -87,14 +87,18 @@ class Request:
                                     json=json_data,
                                     data=files,
                                     params=params) as response:
-                logger.info(f'HTTP async Request: POST {url}, {response.status}')
-                response_json = await response.json()
-
+                logger.info('HTTP async Request: POST %s, %s', url, response.status)
+                try:
+                    response_json = await response.json()
+                except aiohttp.client_exceptions.ContentTypeError:
+                    logger.info('не могу расшифровать ответ сервера, возможно он пустой')
+                    response_json = ''
                 try:
                     response.raise_for_status()
                 except aiohttp.ClientResponseError:
-                    logger.error(f'REQUEST ERROR {response_json.get("message")}')
-                    return {'error': response_json.get("message")}
+                    message = response_json.get("message")
+                    logger.error('REQUEST ERROR %s', message)
+                    return {'error': message}
 
                 return response_json
 

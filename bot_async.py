@@ -4,7 +4,6 @@
 import asyncio
 import threading
 
-import openpyxl
 import uvicorn
 # from logger import logger
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -84,22 +83,34 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """Обрабатывает файл xlsx с ценами
     важно чтобы колонки назывались 'name', 'barcode', 'selling_price' """
 
+    await update.message.reply_text("получил новый прайс, обрабатываю")
+
     excel_file_path = 'received_file.xlsx'
     # Получаем файл
     file = await context.bot.getFile(update.message.document.file_id)
     await file.download_to_drive(excel_file_path)
 
     # Получаем товары из Бифит
-    all_prod = bifit_session.get_all_bifit_prod()
-# убрать все что ниже в отд функ
-    try:
-        for new_good in read_xlsx(file_path):
-            if new_good.barcode is not None:
-                for prod in all_prod:
-                    if new_good.barcode == prod.nomenclature.barcode:
-                        ...
-    except ValueError as e:
-        await update.message.reply_text("Ошибка!:\n %s", e)
+    await update.message.reply_text("запрашиваю товары из базы Бифит-кассы")
+    all_prod = await bifit_session.get_all_bifit_prod()
+
+    if 'error' in all_prod:
+        await update.message.reply_text("не удалось получить товары")
+        return None
+
+    price_change_doc_id = await bifit_session.make_price_change_docs_async(all_prod, excel_file_path)
+    if price_change_doc_id == -1:
+        await update.message.reply_text("не удалось создать документ изменения цен")
+        return None
+
+    await update.message.reply_text("Создал документ изменения цен. Пытаюсь провести")
+
+    execute_doc_response = await bifit_session.execute_price_change_docs([price_change_doc_id])
+
+    if 'error' in execute_doc_response:
+        await update.message.reply_text("не удалось провести документ изменения цен")
+        return None
+    await update.message.reply_text("Цены изменил!")
 
 
 async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

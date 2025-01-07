@@ -1,5 +1,6 @@
 class Contactor:
     """Класс поставщика Бифит-кассы"""
+
     def __init__(self, data: dict) -> None:
         self.id = int(data.get("id"))
         self.organization_id = data.get("organizationId")
@@ -23,7 +24,6 @@ class Contactor:
         self.has_price_list = data.get("hasPriceList")
         self.down_quantum_round = data.get("downQuantumRound")
         self.external_id_without_prefix = data.get("externalIdWithoutPrefix")
-
 
     def __str__(self) -> str:
         return f"Contactor(id={self.id}, short_name={self.short_name})"
