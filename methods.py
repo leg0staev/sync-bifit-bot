@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import Generator
+from typing import Generator, Dict, Any, Tuple
 from zipfile import BadZipFile
 
 import openpyxl
@@ -306,14 +306,23 @@ def read_xlsx(file_path_name: str) -> Generator:
     # Пропускаем заголовок
     for row in sheet.iter_rows(min_row=2, values_only=True):
         # Извлекаем значения для каждого необходимого поля
-        barcode: str = str(row[field_indices['barcode']])
-        selling_price: int = row[field_indices['selling_price']]
-        purchase_price: int = row[field_indices['purchase_price']]
+        barcode = row[field_indices['barcode']]
+        selling_price = row[field_indices['selling_price']]
+        purchase_price = row[field_indices['purchase_price']]
+        if barcode and selling_price is not None:
+            # Создаем namedtuple для каждой строки
+            excel_good = ExcelGood(str(barcode), selling_price, purchase_price)
+            logger.debug('excel_good= %s', excel_good)
+            yield excel_good
 
-        # Создаем namedtuple для каждой строки
-        excel_good = ExcelGood(barcode, selling_price, purchase_price)
-        yield excel_good
 
+def get_barcodes_from_xlsx(file_path_name: str) -> dict[str, tuple[float, float]]:
+    logger.debug('начал get_barcodes_from_xlsx')
+    excel_goods = read_xlsx(file_path_name)
+    if excel_goods is not None:
+        logger.debug('получил excel_goods, формирую словарь')
+        return {code: (selling_price, purchase_price) for code, selling_price, purchase_price in excel_goods}
+    logger.debug('не получил excel_goods')
 
 def make_price_change_items(file_name: str, bifit_prod: set[Good]) -> list[dict]:
     logger.debug('начал make_price_change_items')
@@ -334,10 +343,6 @@ def make_price_change_items(file_name: str, bifit_prod: set[Good]) -> list[dict]
                             "oldSellingPrice": prod.nomenclature.selling_price
                         }
 
-                        # Добавление поля 'purchasePrice' только если значение не None
-                        if new_good.purchase_price is not None:
-                            item["purchasePrice"] = new_good.purchase_price
-
                         logger.debug('item= %s', item)
                         items.append(item)
 
@@ -348,9 +353,23 @@ def make_price_change_items(file_name: str, bifit_prod: set[Good]) -> list[dict]
     return items
 
 
-# Использование генератора
-if __name__ == '__main__':
+def make_price_change_items_new(nomanclatures: list[Nomenclature], codes: dict):
+    logger.debug('начал make_price_change_items_new')
+    items = []
 
-    file_path = 'received_file.xlsx'
-    for good in read_xlsx(file_path):
-        print(good)
+    for nomenclature in nomanclatures:
+
+        item = {
+            # "id": None,
+            # "documentId": None,
+            "nomenclatureId": nomenclature.id,
+            "sellingPrice": codes[nomenclature.barcode][0],
+            "purchasePrice": codes[nomenclature.barcode][1] or 0,
+            "oldSellingPrice": nomenclature.selling_price
+        }
+
+        logger.debug('item= %s', item)
+        items.append(item)
+
+    logger.debug('закончил make_price_change_items_new')
+    return items

@@ -5,9 +5,10 @@ from datetime import datetime, timezone, timedelta
 from Clases.BifitApi.Contactor import Contactor
 from Clases.BifitApi.ContactorsRequest import ContactorsRequest
 from Clases.BifitApi.ExecutePriceChangeRequest import ExecutePriceChangeRequest
+from Clases.BifitApi.GetNomenclaturesRequest import GetNomenclaturesRequest
 from Clases.BifitApi.MakePriceChangeRequest import MakePriceChangeRequest
 from Clases.BifitApi.MakeWriteOffDocRequest import MakeWriteOffDocRequest
-from Clases.BifitApi.ParentNomenclaturesReq import *
+from Clases.BifitApi.ParentNomenclaturesReq import ParentNomenclaturesReq
 from Clases.BifitApi.SendCSVStocksRequest import SendCSVStocksRequest
 from Exceptions.ResponseContentException import ResponseContentException
 from Exceptions.ResponseStatusException import ResponseStatusException
@@ -26,6 +27,7 @@ class BifitSession(Request):
     PARENT_NOM_URL = f'{BIFIT_API_URL}/protected/nomenclatures'
     CONTACTORS_URL = f'{BIFIT_API_URL}/protected/contractors/list'
     MAKE_PRICE_CHANGE_DOCS_URL = f'{BIFIT_API_URL}/protected/price_change'
+    GET_NOMENCLATURES_BY_BARCODES_URL = f'{BIFIT_API_URL}/protected/nomenclatures/barcodes/list/read'
 
     __slots__ = (
         'username',
@@ -252,6 +254,39 @@ class BifitSession(Request):
                             market_products[marker].add(product)
 
         return market_products
+
+    async def get_bifit_nomenclatures_by_barcode(self, codes: list[str]) -> list[Nomenclature] | None:
+        """Получает множество всех номенклатур по штрихкодам из склада Бифит-кассы"""
+        logger.debug('начал get_bifit_nomenclatures_by_barcode')
+
+        # Получение токена и других необходимых данных
+        token = await self.token
+        org = await self.org
+
+        nomenclatures_request = GetNomenclaturesRequest(
+            url=BifitSession.GET_NOMENCLATURES_BY_BARCODES_URL,
+            token=token,
+            org_id=org.id,
+            barcodes=codes
+        )
+        logger.debug('Отправляю запрос на получение номенклатур по штрихкодам')
+        nomenclatures_response = await nomenclatures_request.send_post_async()
+
+        if 'error' in nomenclatures_response:
+            logger.error('Ошибка на этапе запроса номенклатур - %s', nomenclatures_response)
+            return None
+
+        logger.debug('номенклатуры получил. пробую прочитать')
+
+        try:
+            nomenclatures_lst = [Nomenclature(item) for item in nomenclatures_response]
+        except TypeError as e:
+            logger.error('TypeError Неожиданный ответ сервера - %s', e)
+            return None
+        except KeyError as e:
+            logger.error('KeyError Неожиданный ответ сервера - %s', e)
+            return None
+        return nomenclatures_lst
 
     async def get_bifit_prod_by_markers(self, markers: tuple[str] = ()) -> dict[str, str] | set[Good]:
         """НЕ ИСПОЛЬЗУЕТСЯ! Получает список всех товаров из склада Бифит-кассы по маркерам"""
@@ -597,15 +632,15 @@ class BifitSession(Request):
         return await asyncio.gather(*coroutines)
 
     async def make_price_change_docs_async(self,
-                                           ozon_products: set[Good],
-                                           file: str) -> dict | int:
+                                           nomenclatures: list[Nomenclature],
+                                           barcodes: dict) -> dict | int:
         logger.debug(f'начал make_price_change_docs_async')
 
         url = BifitSession.MAKE_PRICE_CHANGE_DOCS_URL
         token = await self.token
         org = await self.org
         trade_obj = await self.trade_obj
-        change_items = make_price_change_items(file, ozon_products)
+        change_items = make_price_change_items_new(nomenclatures, barcodes)
 
         change_price_req = MakePriceChangeRequest(url=url,
                                                   token=token,

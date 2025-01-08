@@ -90,15 +90,21 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     file = await context.bot.getFile(update.message.document.file_id)
     await file.download_to_drive(excel_file_path)
 
-    # Получаем товары из Бифит
-    await update.message.reply_text("запрашиваю товары из базы Бифит-кассы")
-    all_prod = await bifit_session.get_all_bifit_prod()
+    # Получаем штрих коды из xlsx
+    await update.message.reply_text("получаю штрихкоды из xlsx")
+    barcodes_dict = get_barcodes_from_xlsx(excel_file_path)
 
-    if 'error' in all_prod:
-        await update.message.reply_text("не удалось получить товары")
+    if barcodes_dict is None:
+        await update.message.reply_text("не смог получить штрихкоды из xlsx")
         return None
 
-    price_change_doc_id = await bifit_session.make_price_change_docs_async(all_prod, excel_file_path)
+    await update.message.reply_text("отправляю запрос на получение номенклатур в Бифит")
+    nomenclatures_list = await bifit_session.get_bifit_nomenclatures_by_barcode(list(barcodes_dict.keys()))
+    if nomenclatures_list is None:
+        await update.message.reply_text("не смог получить номенклатуры в Бифит")
+        return None
+
+    price_change_doc_id = await bifit_session.make_price_change_docs_async(nomenclatures_list, barcodes_dict)
     if price_change_doc_id == -1:
         await update.message.reply_text("не удалось создать документ изменения цен")
         return None
