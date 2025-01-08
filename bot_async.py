@@ -94,7 +94,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text("получаю штрихкоды из xlsx")
     barcodes_dict = get_barcodes_from_xlsx(excel_file_path)
 
-    if barcodes_dict is None:
+    if not barcodes_dict:
         await update.message.reply_text("не смог получить штрихкоды из xlsx")
         return None
 

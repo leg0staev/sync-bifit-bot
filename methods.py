@@ -1,9 +1,8 @@
 from collections import namedtuple
-from typing import Generator, Dict, Any, Tuple
+from typing import Generator, Union
 from zipfile import BadZipFile
 
 import openpyxl
-
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
@@ -269,7 +268,7 @@ def make_ozon_write_off_items(market_prod: set[Good], ozon_posting: Posting) -> 
     return items
 
 
-def read_xlsx(file_path_name: str) -> Generator:
+def read_xlsx(file_path_name: str) -> Generator[Union[namedtuple, None], None, None]:
     """Генератор, читает файл построчно"""
     logger.debug('начал read_xlsx')
     required_fields = {'barcode', 'selling_price', 'purchase_price'}
@@ -279,10 +278,10 @@ def read_xlsx(file_path_name: str) -> Generator:
         workbook = openpyxl.load_workbook(file_path_name)
     except FileNotFoundError:
         logger.error('не нашел xlsx')
-        return None
+        return
     except BadZipFile:
         logger.error('этот файл не xlsx')
-        return None
+        return
     else:
         logger.debug('успешно загрузил xlsx')
         sheet = workbook.active
@@ -295,7 +294,7 @@ def read_xlsx(file_path_name: str) -> Generator:
 
     if missing_fields:
         logger.error('Отсутствуют обязательные поля в файле - %s', missing_fields)
-        return None
+        return
 
     # Создаем namedtuple динамически
     ExcelGood = namedtuple('Good', ['barcode', 'selling_price', 'purchase_price'])
@@ -319,10 +318,8 @@ def read_xlsx(file_path_name: str) -> Generator:
 def get_barcodes_from_xlsx(file_path_name: str) -> dict[str, tuple[float, float]]:
     logger.debug('начал get_barcodes_from_xlsx')
     excel_goods = read_xlsx(file_path_name)
-    if excel_goods is not None:
-        logger.debug('получил excel_goods, формирую словарь')
-        return {code: (selling_price, purchase_price) for code, selling_price, purchase_price in excel_goods}
-    logger.debug('не получил excel_goods')
+    return {code: (selling_price, purchase_price) for code, selling_price, purchase_price in excel_goods}
+
 
 def make_price_change_items(file_name: str, bifit_prod: set[Good]) -> list[dict]:
     logger.debug('начал make_price_change_items')
@@ -358,7 +355,6 @@ def make_price_change_items_new(nomanclatures: list[Nomenclature], codes: dict):
     items = []
 
     for nomenclature in nomanclatures:
-
         item = {
             # "id": None,
             # "documentId": None,
