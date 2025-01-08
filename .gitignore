@@ -5,3 +5,5 @@
 settings.py
 /logs
 sync-bot.tar
+*.xlsx
+*.*.xlsx#

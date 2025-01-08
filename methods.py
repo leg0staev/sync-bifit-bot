@@ -1,3 +1,9 @@
+from collections import namedtuple
+from typing import Generator, Dict, Any, Tuple
+from zipfile import BadZipFile
+
+import openpyxl
+
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
@@ -15,7 +21,6 @@ from Clases.BifitApi.OrgListReq import *
 from Clases.BifitApi.Organization import *
 from Clases.BifitApi.TradeObjListReq import TradeObjListReq
 from Clases.BifitApi.TradeObject import *
-
 from logger import logger
 
 
@@ -69,7 +74,7 @@ def get_markets_products(products_set: set[Good]) -> tuple:
 def parse_calculation(string: str) -> \
         (tuple[dict[str, tuple[str, int]], set[tuple[str, int]]], set[str] | tuple[None, None, None]):
     """парсит расчет"""
-    logger.debug('parse_calculation started')
+    logger.debug('начал parse_calculation')
     lines = string.strip().split('\n')
     template = '№ п/п  наименование  штрих код  -  цена за ед    -  кол-во    -  всего'
     if template not in lines[0]:
@@ -89,14 +94,14 @@ def parse_calculation(string: str) -> \
         name = name.strip()
         barcode = barcode.strip()
         if not name:
-            logger.debug(f'пустое имя {number_with_name=} остановка')
+            logger.debug('пустое имя number_with_name=%s остановка', number_with_name)
             break
         quantity, *_ = specifications[-2].split()
-        logger.debug(f'{quantity=}')
+        logger.debug('quantity=%s', quantity)
         try:
             quantity = int(quantity)
         except ValueError as e:
-            logger.error(f'не смог преобразовать количество из строки в число {e}')
+            logger.error('не смог преобразовать количество из строки в число - %s', e)
             no_quantity.add(f'{name} - количество: {quantity}')
             continue
 
@@ -105,14 +110,7 @@ def parse_calculation(string: str) -> \
         else:
             no_barcode.add((name, quantity))
 
-    logger.debug('спарсил рассчтет.\n'
-                 'для списания:\n'
-                 f'{to_write_off}\n'
-                 'без штрихкода:\n'
-                 f'{no_barcode}\n'
-                 'без количества:\n'
-                 f'{no_quantity}')
-    logger.debug('parse_calculation finished smoothly')
+    logger.debug('parse_calculation закончил без ошибок')
     return to_write_off, no_barcode, no_quantity
 
 
@@ -146,7 +144,7 @@ def products_write_off(all_bifit_goods: set[Good],
     for scu, name_and_quantity in goods_to_remove.items():
         name, quantity = name_and_quantity
         good_str = f'{name} - штрих: {scu} - кол-во: {quantity}'
-        logger.debug(f'ищу товар {good_str}')
+        logger.debug('ищу товар %s', good_str)
         updated_good = None
         for good in all_bifit_goods:
             if scu == good.nomenclature.barcode:
@@ -164,7 +162,7 @@ def products_write_off(all_bifit_goods: set[Good],
 
 def goods_list_to_csv_str(products_set: set[Good]) -> str:
     """Формирует строковое представление CSV файла с обновленным количеством товаров"""
-    logger.debug('goods_list_to_csv_str started')
+    logger.debug('начал goods_list_to_csv_str')
     headlines = ('Количество', 'Идентификатор торгового объекта', 'Идентификатор номенклатуры')
     result = ''
     csv_header = ';'.join(f'"{headline}"' for headline in headlines)
@@ -178,8 +176,8 @@ def goods_list_to_csv_str(products_set: set[Good]) -> str:
             )
         )
         result += csv_line + '\n'
-    logger.debug(f'{result}')
-    logger.debug('goods_list_to_csv_str finished')
+    logger.debug('%s', result)
+    logger.debug('закончил goods_list_to_csv_str')
     return result
 
 
@@ -228,17 +226,17 @@ def get_bifit_products_set(srv_resp: dict) -> set[Good] | set[str]:
             try:
                 product = Good(Goods(item['goods']), Nomenclature(item['nomenclature']))
             except KeyError as e:
-                logger.error(f'Неожиданный ответ сервера. Ошибка формирования товара - {e}')
+                logger.error('Неожиданный ответ сервера. Ошибка формирования товара - %s', e)
                 logger.debug('get_bifit_products_set завершил с ошибкой')
                 return {'error', f'ошибка формирования товара. неожиданный ответ сервера - {e}'}
             else:
                 all_prod.add(product)
 
     except TypeError as e:
-        logger.error(f'Неожиданный ответ сервера - {e}')
+        logger.error('Неожиданный ответ сервера - %s', e)
         return {'error', f'ошибка формирования списка товаров. неожиданный ответ сервера - {e}'}
 
-    logger.debug('get_bifit_prod_by_markers закончил без ошибок')
+    logger.debug('get_bifit_products_set закончил без ошибок')
 
     return all_prod
 
@@ -268,4 +266,110 @@ def make_ozon_write_off_items(market_prod: set[Good], ozon_posting: Posting) -> 
                 items.append(item)
                 break
     logger.debug('закончил make_ozon_write_off_items')
+    return items
+
+
+def read_xlsx(file_path_name: str) -> Generator:
+    """Генератор, читает файл построчно"""
+    logger.debug('начал read_xlsx')
+    required_fields = {'barcode', 'selling_price', 'purchase_price'}
+
+    # Открываем файл
+    try:
+        workbook = openpyxl.load_workbook(file_path_name)
+    except FileNotFoundError:
+        logger.error('не нашел xlsx')
+        return None
+    except BadZipFile:
+        logger.error('этот файл не xlsx')
+        return None
+    else:
+        logger.debug('успешно загрузил xlsx')
+        sheet = workbook.active
+
+    # Получаем заголовки колонок
+    headers = [cell.value for cell in sheet[1]]
+
+    # Проверяем наличие необходимых заголовков
+    missing_fields = required_fields - set(headers)
+
+    if missing_fields:
+        logger.error('Отсутствуют обязательные поля в файле - %s', missing_fields)
+        return None
+
+    # Создаем namedtuple динамически
+    ExcelGood = namedtuple('Good', ['barcode', 'selling_price', 'purchase_price'])
+
+    # Получаем индексы необходимых колонок
+    field_indices = {field: headers.index(field) for field in required_fields}
+
+    # Пропускаем заголовок
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        # Извлекаем значения для каждого необходимого поля
+        barcode = row[field_indices['barcode']]
+        selling_price = row[field_indices['selling_price']]
+        purchase_price = row[field_indices['purchase_price']]
+        if barcode and selling_price is not None:
+            # Создаем namedtuple для каждой строки
+            excel_good = ExcelGood(str(barcode), selling_price, purchase_price)
+            logger.debug('excel_good= %s', excel_good)
+            yield excel_good
+
+
+def get_barcodes_from_xlsx(file_path_name: str) -> dict[str, tuple[float, float]]:
+    logger.debug('начал get_barcodes_from_xlsx')
+    excel_goods = read_xlsx(file_path_name)
+    if excel_goods is not None:
+        logger.debug('получил excel_goods, формирую словарь')
+        return {code: (selling_price, purchase_price) for code, selling_price, purchase_price in excel_goods}
+    logger.debug('не получил excel_goods')
+
+def make_price_change_items(file_name: str, bifit_prod: set[Good]) -> list[dict]:
+    logger.debug('начал make_price_change_items')
+    items = []
+
+    try:
+        for new_good in read_xlsx(file_name):
+            logger.debug('new_good= %s', new_good)
+            if new_good.barcode:
+                for prod in bifit_prod:
+                    if new_good.barcode == prod.nomenclature.barcode:
+                        item = {
+                            # "id": None,
+                            # "documentId": None,
+                            "nomenclatureId": prod.nomenclature.id,
+                            "sellingPrice": new_good.selling_price,
+                            "purchasePrice": new_good.purchase_price or 0,
+                            "oldSellingPrice": prod.nomenclature.selling_price
+                        }
+
+                        logger.debug('item= %s', item)
+                        items.append(item)
+
+    except ValueError:
+        logger.error('не могу получить товары из файла')
+
+    logger.debug('закончил make_price_change_items')
+    return items
+
+
+def make_price_change_items_new(nomanclatures: list[Nomenclature], codes: dict):
+    logger.debug('начал make_price_change_items_new')
+    items = []
+
+    for nomenclature in nomanclatures:
+
+        item = {
+            # "id": None,
+            # "documentId": None,
+            "nomenclatureId": nomenclature.id,
+            "sellingPrice": codes[nomenclature.barcode][0],
+            "purchasePrice": codes[nomenclature.barcode][1] or 0,
+            "oldSellingPrice": nomenclature.selling_price
+        }
+
+        logger.debug('item= %s', item)
+        items.append(item)
+
+    logger.debug('закончил make_price_change_items_new')
     return items

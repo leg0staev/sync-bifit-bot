@@ -4,8 +4,11 @@ from datetime import datetime, timezone, timedelta
 
 from Clases.BifitApi.Contactor import Contactor
 from Clases.BifitApi.ContactorsRequest import ContactorsRequest
+from Clases.BifitApi.ExecutePriceChangeRequest import ExecutePriceChangeRequest
+from Clases.BifitApi.GetNomenclaturesRequest import GetNomenclaturesRequest
+from Clases.BifitApi.MakePriceChangeRequest import MakePriceChangeRequest
 from Clases.BifitApi.MakeWriteOffDocRequest import MakeWriteOffDocRequest
-from Clases.BifitApi.ParentNomenclaturesReq import *
+from Clases.BifitApi.ParentNomenclaturesReq import ParentNomenclaturesReq
 from Clases.BifitApi.SendCSVStocksRequest import SendCSVStocksRequest
 from Exceptions.ResponseContentException import ResponseContentException
 from Exceptions.ResponseStatusException import ResponseStatusException
@@ -23,6 +26,8 @@ class BifitSession(Request):
     SEND_CSV_URL = f'{BIFIT_API_URL}/protected/goods/csv/upload'
     PARENT_NOM_URL = f'{BIFIT_API_URL}/protected/nomenclatures'
     CONTACTORS_URL = f'{BIFIT_API_URL}/protected/contractors/list'
+    MAKE_PRICE_CHANGE_DOCS_URL = f'{BIFIT_API_URL}/protected/price_change'
+    GET_NOMENCLATURES_BY_BARCODES_URL = f'{BIFIT_API_URL}/protected/nomenclatures/barcodes/list/read'
 
     __slots__ = (
         'username',
@@ -54,6 +59,7 @@ class BifitSession(Request):
         await self.get_first_bifit_org_async()
         await self.get_first_bifit_trade_obj_async()
         await self.get_yml_async()
+        logger.debug('инициализацию закончил')
 
     @property
     async def token(self) -> str:
@@ -88,7 +94,7 @@ class BifitSession(Request):
             logger.debug('в сессии нет данных по торговому объекту, пробую получить')
             await self.get_first_bifit_trade_obj_async()
         else:
-            logger.debug('нашел данные по организации в экземпляре класса сессии')
+            logger.debug('нашел данные по торговому объекту в экземпляре класса сессии')
         return self.trade_object
 
     async def get_token_by_refresh_async(self) -> None:
@@ -159,7 +165,7 @@ class BifitSession(Request):
 
     async def get_first_bifit_trade_obj_async(self) -> None:
         """Получает первый торговый объект из списка Бифит-кассы (у меня он один)"""
-        logger.debug('get_first_bifit_trade_obj_async started')
+        logger.debug('начал get_first_bifit_trade_obj_async')
         if self.organisation is None:
             await self.get_first_bifit_org_async()
         trade_obj_list_request = TradeObjListReq(
@@ -200,14 +206,12 @@ class BifitSession(Request):
         return await goods_list_request.send_post_async()
 
     async def get_all_bifit_prod(self) -> set[Good] | set[str]:
-        """Получает список всех товаров из склада Бифит-кассы"""
+        """Получает множество всех товаров из склада Бифит-кассы"""
         logger.debug('начал get_all_bifit_prod')
         # Получение токена и других необходимых данных
         token = await self.token
         org = await self.org
         trade_obj = await self.trade_obj
-
-        all_products: set[Good] = set()
 
         goods_list_request = GoodsListReq(
             url=BifitSession.GOODS_LIST_URL,
@@ -219,32 +223,10 @@ class BifitSession(Request):
         logger.debug('Отправляю запрос на получение всех товаров склада Бифит-кассы')
         goods_list_response = await goods_list_request.send_post_async()
 
-        if 'error' in goods_list_response:
-            logger.error(f'Ошибка на этапе запроса списка товаров - {goods_list_response}')
-            return {'error', f'сервер вернул ошибку - {goods_list_response}'}
-
-        logger.debug('товары получил. пробую прочитать')
-
-        try:
-            for item in goods_list_response:
-                try:
-                    product = Good(Goods(item['goods']), Nomenclature(item['nomenclature']))
-                except KeyError as e:
-                    logger.error(f'Неожиданный ответ сервера. Ошибка формирования товара - {e}')
-                    logger.debug('get_bifit_products_set_async finished with exception')
-                    return {'error', f'ошибка формирования товара. неожиданный ответ сервера - {e}'}
-                else:
-                    all_products.add(product)
-
-        except TypeError as e:
-            logger.error(f'Неожиданный ответ сервера - {e}')
-            return {'error', f'ошибка формирования списка товаров. неожиданный ответ сервера - {e}'}
-
-        logger.debug('get_bifit_prod_by_markers закончил без ошибок')
-
-        return all_products
+        return get_bifit_products_set(goods_list_response)
 
     async def get_bifit_prod_by_marker(self, markers: tuple[str]) -> dict[str, str] | dict[str, set]:
+        logger.debug('начал get_bifit_prod_by_marker')
         srv_resp = await self.get_all_bifit_prod_response()
         if 'error' in srv_resp:
             return {'error': f'{srv_resp[1]}'}
@@ -272,6 +254,39 @@ class BifitSession(Request):
                             market_products[marker].add(product)
 
         return market_products
+
+    async def get_bifit_nomenclatures_by_barcode(self, codes: list[str]) -> list[Nomenclature] | None:
+        """Получает множество всех номенклатур по штрихкодам из склада Бифит-кассы"""
+        logger.debug('начал get_bifit_nomenclatures_by_barcode')
+
+        # Получение токена и других необходимых данных
+        token = await self.token
+        org = await self.org
+
+        nomenclatures_request = GetNomenclaturesRequest(
+            url=BifitSession.GET_NOMENCLATURES_BY_BARCODES_URL,
+            token=token,
+            org_id=org.id,
+            barcodes=codes
+        )
+        logger.debug('Отправляю запрос на получение номенклатур по штрихкодам')
+        nomenclatures_response = await nomenclatures_request.send_post_async()
+
+        if 'error' in nomenclatures_response:
+            logger.error('Ошибка на этапе запроса номенклатур - %s', nomenclatures_response)
+            return None
+
+        logger.debug('номенклатуры получил. пробую прочитать')
+
+        try:
+            nomenclatures_lst = [Nomenclature(item) for item in nomenclatures_response]
+        except TypeError as e:
+            logger.error('TypeError Неожиданный ответ сервера - %s', e)
+            return None
+        except KeyError as e:
+            logger.error('KeyError Неожиданный ответ сервера - %s', e)
+            return None
+        return nomenclatures_lst
 
     async def get_bifit_prod_by_markers(self, markers: tuple[str] = ()) -> dict[str, str] | set[Good]:
         """НЕ ИСПОЛЬЗУЕТСЯ! Получает список всех товаров из склада Бифит-кассы по маркерам"""
@@ -381,7 +396,7 @@ class BifitSession(Request):
             logger.debug('send_stocks finished with exception')
             raise ResponseStatusException(parent_noms_response.get('error'))
         try:
-            parent_noms_list = tuple(Nomenclature(item) for item in parent_noms_response)
+            parent_noms_list = tuple(Nomenclature(item_) for item_ in parent_noms_response)
         except KeyError as e:
             logger.error(f'Ошибка формирования родительских номенклатур.'
                          f'неожиданный ответ от сервера - {e}')
@@ -433,8 +448,8 @@ class BifitSession(Request):
         coroutines = set()
         categories = dict()
 
-        for good in goods_list:
-            coroutines.add(self.get_parent_nomenclature_async(good.nomenclature.id))
+        for good_ in goods_list:
+            coroutines.add(self.get_parent_nomenclature_async(good_.nomenclature.id))
 
         try:
             parent_nomenclatures = await asyncio.gather(*coroutines)
@@ -458,8 +473,8 @@ class BifitSession(Request):
 
         coroutines = list()
 
-        for good in goods_list:
-            coroutines.append(self.get_parent_nomenclature_async(good.nomenclature.id))
+        for good_ in goods_list:
+            coroutines.append(self.get_parent_nomenclature_async(good_.nomenclature.id))
 
         try:
             parent_nomenclatures = await asyncio.gather(*coroutines)
@@ -472,13 +487,13 @@ class BifitSession(Request):
             return {}
         else:
             logger.debug(f'{parent_nomenclatures=}')
-            return {good: parent_nomenclature for good, parent_nomenclature in zip(goods_list, parent_nomenclatures)}
+            return {good_: parent_nomenclature for good_, parent_nomenclature in zip(goods_list, parent_nomenclatures)}
 
     async def get_yab_goods_list(self, goods_set: set[Good]) -> list[dict]:
         """Формирует отсортированный по дате изменения список словарей
         {'good': Товар, 'parent_nomenclature': Родительская номенклатура, 'vendor': Поставщик}"""
         vendor_ids = list({product.nomenclature.contractor_id for product in goods_set})
-        coroutines_nomenclatures = [self.get_parent_nomenclature_async(good.nomenclature.id) for good in goods_set]
+        coroutines_nomenclatures = [self.get_parent_nomenclature_async(good_.nomenclature.id) for good_ in goods_set]
 
         try:
             vendors_dict = await self.get_vendors_async(vendor_ids)
@@ -494,9 +509,9 @@ class BifitSession(Request):
         sorted_yab_goods = sorted(list(zip(goods_set, parent_nomenclatures)),
                                   key=lambda item: item[0].nomenclature.changed)
 
-        for good, parent_nomenclature in sorted_yab_goods:
-            vendor = vendors_dict.get(good.nomenclature.contractor_id)
-            yab_goods_list.append({'good': good, 'parent_nomenclature': parent_nomenclature, 'vendor': vendor})
+        for good_, parent_nomenclature in sorted_yab_goods:
+            vendor = vendors_dict.get(good_.nomenclature.contractor_id)
+            yab_goods_list.append({'good': good_, 'parent_nomenclature': parent_nomenclature, 'vendor': vendor})
 
         return yab_goods_list
 
@@ -592,7 +607,7 @@ class BifitSession(Request):
             ozon_products: set[Good],
             ozon_postings: list[Posting],
             execute: bool = False  # нужно ли проводить документ
-    ):
+    ) -> tuple[dict]:
         logger.debug(f'начал make_ozon_write_off_doc_async')
         coroutines = set()
 
@@ -615,3 +630,41 @@ class BifitSession(Request):
             coroutines.add(write_off_doc_req.send_post_async())
 
         return await asyncio.gather(*coroutines)
+
+    async def make_price_change_docs_async(self,
+                                           nomenclatures: list[Nomenclature],
+                                           barcodes: dict) -> dict | int:
+        logger.debug(f'начал make_price_change_docs_async')
+
+        url = BifitSession.MAKE_PRICE_CHANGE_DOCS_URL
+        token = await self.token
+        org = await self.org
+        trade_obj = await self.trade_obj
+        change_items = make_price_change_items_new(nomenclatures, barcodes)
+
+        change_price_req = MakePriceChangeRequest(url=url,
+                                                  token=token,
+                                                  org_id=org.id,
+                                                  trade_obj_id=trade_obj.id,
+                                                  items=change_items)
+
+        response = await change_price_req.send_post_async()
+
+        if isinstance(response, dict):
+            return -1
+
+        return response
+
+    async def execute_price_change_docs(self, doc_ids: list[int]):
+        logger.debug(f'начал execute_price_change_docs')
+
+        url = BifitSession.BIFIT_API_URL
+        token = await self.token
+        org = await self.org
+
+        execute_docs_req = ExecutePriceChangeRequest(url=url,
+                                                     token=token,
+                                                     org_id=org.id,
+                                                     doc_ids=doc_ids)
+
+        return await execute_docs_req.send_post_async()

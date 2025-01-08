@@ -48,13 +48,8 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(message)
     await update.message.reply_text("отправляю запрос на актуальные остатки из Бифит")
 
-    server_response = await bifit_session.get_all_bifit_prod_response()
-    if 'error' in server_response:
-        await update.message.reply_text(f"сервер вернул ошибку - {server_response.get('error')}")
-        return None
-    await update.message.reply_text(f"получил ответ от сервера, пробую прочитать")
+    goods_set = bifit_session.get_all_bifit_prod()
 
-    goods_set = get_bifit_products_set(server_response)
     if 'error' in goods_set:
         await update.message.reply_text(f"не могу прочитать товары. неожиданный ответ сервера")
         return None
@@ -82,6 +77,46 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                         'Отправь фото эих товаров @c0m_a, чтобы '
                                         'он списал вручную!\n'
                                         f'{outdated_goods_set}')
+
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает файл xlsx с ценами
+    важно чтобы колонки назывались 'name', 'barcode', 'selling_price' """
+
+    await update.message.reply_text("получил новый прайс, обрабатываю")
+
+    excel_file_path = 'received_file.xlsx'
+    # Получаем файл
+    file = await context.bot.getFile(update.message.document.file_id)
+    await file.download_to_drive(excel_file_path)
+
+    # Получаем штрих коды из xlsx
+    await update.message.reply_text("получаю штрихкоды из xlsx")
+    barcodes_dict = get_barcodes_from_xlsx(excel_file_path)
+
+    if barcodes_dict is None:
+        await update.message.reply_text("не смог получить штрихкоды из xlsx")
+        return None
+
+    await update.message.reply_text("отправляю запрос на получение номенклатур в Бифит")
+    nomenclatures_list = await bifit_session.get_bifit_nomenclatures_by_barcode(list(barcodes_dict.keys()))
+    if nomenclatures_list is None:
+        await update.message.reply_text("не смог получить номенклатуры в Бифит")
+        return None
+
+    price_change_doc_id = await bifit_session.make_price_change_docs_async(nomenclatures_list, barcodes_dict)
+    if price_change_doc_id == -1:
+        await update.message.reply_text("не удалось создать документ изменения цен")
+        return None
+
+    await update.message.reply_text("Создал документ изменения цен. Пытаюсь провести")
+
+    execute_doc_response = await bifit_session.execute_price_change_docs([price_change_doc_id])
+
+    if 'error' in execute_doc_response:
+        await update.message.reply_text("не удалось провести документ изменения цен")
+        return None
+    await update.message.reply_text("Цены изменил!")
 
 
 async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -205,6 +240,7 @@ async def keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка нажатий на клавиатуру"""
     query = update.callback_query
     data = query.data
     await query.answer()
@@ -232,6 +268,9 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("get_yml", get_new_yml))
     application.add_handler(CommandHandler("make_write_off_docs", make_write_off_docs))
     application.add_handler(CommandHandler("sync", synchronization))
+    application.add_handler(
+        MessageHandler(filters.Document.MimeType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                       handle_document))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
     application.add_handler(CallbackQueryHandler(handle_callbacks))
     # on non command i.e message - echo the message on Telegram
