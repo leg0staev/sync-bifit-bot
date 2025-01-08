@@ -1,18 +1,19 @@
 class Nomenclature:
     __slots__ = (
-        'id', 'organization_id', 'external_id', 'external_code', 'created', 'changed', 'barcode', 'vendor_code',
-        'name', 'short_name', 'parent_id', 'vat_id', 'vat_value', 'volume', 'unit_code', 'purchase_price',
-        'selling_price', 'picture', 'weighted', 'grouped', 'focused', 'container', 'payment_subject', 'adults_only',
-        'code', 'mark_type', 'gtin', 'plu_code', 'template', 'visible', 'contractor_activity_type', 'contractor_id',
-        'custom', 'trade_object_relations', 'type', 'composite_goods', 'barcodes', 'country_code',
+        'id', 'organization_id', 'external_id', 'external_code', 'created', 'changed', 'barcode', 'vendor_code', 'name',
+        'short_name', 'parent_id', 'vat_id', 'vat_value', 'unit_code', 'volume', 'capacity', 'capacity_unit_code',
+        'purchase_price', 'selling_price', 'picture', 'weighted', 'grouped', 'focused', 'container', 'payment_subject',
+        'adults_only', 'code', 'mark_type', 'gtin', 'plu_code', 'template', 'visible', 'contractor_activity_type',
+        'contractor_id', 'custom', 'trade_object_relations', 'type', 'composite_goods', 'barcodes', 'country_code',
         'customs_declaration', 'description', 'pictures_ids', 'application', 'nomenclature_features',
         'org_member_points', 'global_nomenclature_id', 'quantum', 'global_category_id',
-        'global_nomenclature_moderation_status', 'expiration', 'expiration_date', 'fifo', 'status', 'all_barcodes',
-        'all_picture_ids'
+        'global_nomenclature_moderation_status', 'expiration', 'expiration_date', 'fifo', 'status', 'mark_up',
+        'turnover', 'inventory_standard', 'countable', 'all_picture_ids', 'purchase_price_or_zero',
+        'selling_price_or_zero', 'all_barcodes', 'external_id_without_prefix'
     )
 
     def __init__(self, data: dict) -> None:
-        self.id = int(data.get("id"))
+        self.id = int(data.get("id", 0))
         self.organization_id = data.get("organizationId")
         self.external_id = data.get("externalId")
         self.external_code = data.get("externalCode")
@@ -21,12 +22,14 @@ class Nomenclature:
         self.barcode = data.get("barcode")
         self.vendor_code = data.get("vendorCode")
         self.name = data.get("name")
-        self.short_name = data.get("shortName") or 'n0 short_name'
+        self.short_name = data.get("shortName")
         self.parent_id = data.get("parentId")
         self.vat_id = data.get("vatId")
         self.vat_value = data.get("vatValue")
-        self.volume = data.get("volume")
         self.unit_code = data.get("unitCode")
+        self.volume = data.get("volume")
+        self.capacity = data.get("capacity")
+        self.capacity_unit_code = data.get("capacityUnitCode")
         self.purchase_price = data.get("purchasePrice")
         self.selling_price = data.get("sellingPrice")
         self.picture = data.get("picture")
@@ -37,7 +40,7 @@ class Nomenclature:
         self.payment_subject = data.get("paymentSubject")
         self.adults_only = data.get("adultsOnly")
         self.code = data.get("code")
-        self.mark_type = data.get("markType")
+        self.mark_type = data.get("markType", "UNKNOWN")
         self.gtin = data.get("gtin")
         self.plu_code = data.get("pluCode")
         self.template = data.get("template")
@@ -64,8 +67,15 @@ class Nomenclature:
         self.expiration_date = data.get("expirationDate")
         self.fifo = data.get("fifo")
         self.status = data.get("status")
-        self.all_barcodes = data.get("allBarcodes")
+        self.mark_up = data.get("markUp")
+        self.turnover = data.get("turnover")
+        self.inventory_standard = data.get("inventoryStandard")
+        self.countable = data.get("countable")
         self.all_picture_ids = data.get("allPictureIds")
+        self.purchase_price_or_zero = data.get("purchasePriceOrZero")
+        self.selling_price_or_zero = data.get("sellingPriceOrZero")
+        self.all_barcodes = data.get("allBarcodes")
+        self.external_id_without_prefix = data.get("externalIdWithoutPrefix")
 
     def __hash__(self):
         return hash(self.id)

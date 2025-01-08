@@ -100,7 +100,7 @@ class Request:
                     logger.error('REQUEST ERROR %s', message)
                     return {'error': message}
 
-                return response_json
+        return response_json
 
     async def send_get_async(self, url=None, headers=None, params=None) -> dict:
         url = url or self.url

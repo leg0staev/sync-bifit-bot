@@ -57,6 +57,7 @@ class BifitSession(Request):
         await self.get_first_bifit_org_async()
         await self.get_first_bifit_trade_obj_async()
         await self.get_yml_async()
+        logger.debug('инициализацию закончил')
 
     @property
     async def token(self) -> str:
@@ -91,7 +92,7 @@ class BifitSession(Request):
             logger.debug('в сессии нет данных по торговому объекту, пробую получить')
             await self.get_first_bifit_trade_obj_async()
         else:
-            logger.debug('нашел данные по организации в экземпляре класса сессии')
+            logger.debug('нашел данные по торговому объекту в экземпляре класса сессии')
         return self.trade_object
 
     async def get_token_by_refresh_async(self) -> None:
@@ -162,7 +163,7 @@ class BifitSession(Request):
 
     async def get_first_bifit_trade_obj_async(self) -> None:
         """Получает первый торговый объект из списка Бифит-кассы (у меня он один)"""
-        logger.debug('get_first_bifit_trade_obj_async started')
+        logger.debug('начал get_first_bifit_trade_obj_async')
         if self.organisation is None:
             await self.get_first_bifit_org_async()
         trade_obj_list_request = TradeObjListReq(
@@ -223,6 +224,7 @@ class BifitSession(Request):
         return get_bifit_products_set(goods_list_response)
 
     async def get_bifit_prod_by_marker(self, markers: tuple[str]) -> dict[str, str] | dict[str, set]:
+        logger.debug('начал get_bifit_prod_by_marker')
         srv_resp = await self.get_all_bifit_prod_response()
         if 'error' in srv_resp:
             return {'error': f'{srv_resp[1]}'}
