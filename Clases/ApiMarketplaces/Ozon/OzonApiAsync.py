@@ -81,7 +81,8 @@ class OzonApiAsync(OzonApi):
         status = 'awaiting_deliver'  # статус - ожидает отправки
 
         now = datetime.now(timezone.utc)
-        cutoff_to = now.strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
+        tomorrow = now + timedelta(days=1)
+        cutoff_to = tomorrow.strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
         # logger.debug(f'{cutoff_to=}')
         cutoff_from = (now - timedelta(days=T_DELTA)).strftime('%Y-%m-%dT%H:%M:%S') + 'Z'
         # logger.debug(f'{cutoff_from=}')
@@ -91,7 +92,7 @@ class OzonApiAsync(OzonApi):
                 "cutoff_from": cutoff_from,
                 "cutoff_to": cutoff_to,
                 # "delivery_method_id": [],
-                "is_quantum": False,
+                # "is_quantum": False,
                 # "provider_id": [],
                 "status": status
                 # "warehouse_id": []
@@ -99,10 +100,10 @@ class OzonApiAsync(OzonApi):
             "limit": 100,
             "offset": 0,
             "with": {
-                "analytics_data": False,
-                "barcodes": False,
-                "financial_data": False,
-                "translit": False
+                # "analytics_data": False,
+                # "barcodes": False,
+                # "financial_data": False,
+                # "translit": False
             }
         }
         # logger.debug(f'{data=}')
