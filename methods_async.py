@@ -1,3 +1,8 @@
+from collections import namedtuple
+from typing import Generator, AsyncGenerator
+from zipfile import BadZipFile
+
+import openpyxl
 from transliterate import slugify
 
 from Clases.ApiMarketplaces.Ali.AliApiAsync import AliApiAsync
@@ -81,10 +86,74 @@ async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_good
     return await ozon_session.send_remains_async(ozon_products_dict, ozon_goods_dict, ozon_warehouses)
 
 
-# async def make_write_off_docs_from_ozon(ozon_admin_key: str, ozon_client_id: str):
-#     ozon_session = OzonApiAsync(ozon_admin_key, ozon_client_id)
-#     ozon_postings_response = await ozon_session.get_all_postings_async()
-#     ...
+async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenerator:
+    """Генератор, читает файл построчно"""
+    logger.debug('начал read_xlsx')
+    required_fields = {'barcode', 'selling_price', 'purchase_price'}
+
+    # Открываем файл
+    try:
+        workbook = openpyxl.load_workbook(file_path_name)
+    except FileNotFoundError:
+        logger.error('не нашел xlsx')
+        return
+    except BadZipFile:
+        logger.error('этот файл не xlsx')
+        return
+    else:
+        logger.debug('успешно загрузил xlsx')
+        sheet = workbook.active
+
+    # Получаем заголовки колонок
+    headers = [cell.value for cell in sheet[1]]
+
+    # Проверяем наличие необходимых заголовков
+    missing_fields = required_fields - set(headers)
+
+    if missing_fields:
+        logger.error('Отсутствуют обязательные поля в файле - %s', missing_fields)
+        return
+
+    # Создаем namedtuple динамически
+    ExcelGood = namedtuple('Good', ['barcode', 'selling_price', 'purchase_price'])
+
+    # Получаем индексы необходимых колонок
+    field_indices = {field: headers.index(field) for field in required_fields}
+
+    # Пропускаем заголовок
+    total_rows = sheet.max_row - 1
+    if total_rows == 0:
+        await bot.send_message(chat_id, text="Файл не содержит данных для обработки.")
+        return
+    progress_message = await bot.send_message(chat_id, text="Начинаю обработку файла...")
+    update_frequency = max(1, total_rows // 10)
+
+    for i, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=1):
+        # Извлекаем значения для каждого необходимого поля
+        barcode = row[field_indices['barcode']]
+        selling_price = row[field_indices['selling_price']]
+        purchase_price = row[field_indices['purchase_price']]
+        if barcode and selling_price is not None:
+            # Создаем namedtuple для каждой строки
+            excel_good = ExcelGood(str(barcode), selling_price, purchase_price)
+            logger.debug('excel_good= %s', excel_good)
+            yield excel_good
+
+        # Обновление прогресса каждые 10%
+        if i % update_frequency == 0:
+            progress = i / total_rows * 100
+            await bot.edit_message_text(chat_id=chat_id, message_id=progress_message.message_id,
+                                        text=f"Обработка: {progress:.0f}%")
+
+    await bot.edit_message_text(chat_id=chat_id, message_id=progress_message.message_id, text="Файл успешно обработан!")
+
+
+async def get_barcodes_from_xlsx_async(file_path_name: str, chat_id: int, bot) -> dict[str, tuple[float, float]]:
+    logger.debug('начал get_barcodes_from_xlsx')
+    excel_goods = {}
+    async for code, selling_price, purchase_price in read_xlsx_async(file_path_name, chat_id, bot):
+        excel_goods[code] = (selling_price, purchase_price)
+    return excel_goods
 
 
 async def send_to_ali_async(ali_token: str, ali_goods_dict: dict[str:int]) -> dict:

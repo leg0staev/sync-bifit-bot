@@ -21,6 +21,7 @@ from Clases.BifitApi.Organization import *
 from Clases.BifitApi.TradeObjListReq import TradeObjListReq
 from Clases.BifitApi.TradeObject import *
 from logger import logger
+from methods_async import read_xlsx_async
 
 
 def get_bifit_token(username: str, pswd: bytes) -> str:

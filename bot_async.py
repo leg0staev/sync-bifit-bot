@@ -6,7 +6,7 @@ import threading
 
 import uvicorn
 # from logger import logger
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 from fastapi_app.app import app
@@ -15,6 +15,8 @@ from methods_async import *
 from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
     OZON_CLIENT_ID, OZON_ADMIN_KEY, BOT_TOKEN
+
+
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -85,6 +87,9 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     await update.message.reply_text("получил новый прайс, обрабатываю")
 
+    bot = Bot(token=BOT_TOKEN)
+    chat_id = update.message.chat_id
+
     excel_file_path = 'received_file.xlsx'
     # Получаем файл
     file = await context.bot.getFile(update.message.document.file_id)
@@ -92,7 +97,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     # Получаем штрих коды из xlsx
     await update.message.reply_text("получаю штрихкоды из xlsx")
-    barcodes_dict = get_barcodes_from_xlsx(excel_file_path)
+    # barcodes_dict = get_barcodes_from_xlsx(excel_file_path)
+    barcodes_dict = await get_barcodes_from_xlsx_async(excel_file_path, chat_id, bot)
 
     if not barcodes_dict:
         await update.message.reply_text("не смог получить штрихкоды из xlsx")
