@@ -50,7 +50,7 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(message)
     await update.message.reply_text("отправляю запрос на актуальные остатки из Бифит")
 
-    goods_set = bifit_session.get_all_bifit_prod()
+    goods_set = await bifit_session.get_all_bifit_prod()
 
     if 'error' in goods_set:
         await update.message.reply_text(f"не могу прочитать товары. неожиданный ответ сервера")
