@@ -30,7 +30,7 @@ class Nomenclature:
         self.volume = data.get("volume")
         self.capacity = data.get("capacity")
         self.capacity_unit_code = data.get("capacityUnitCode")
-        self.purchase_price = data.get("purchasePrice")
+        self.purchase_price = data.get("purchasePrice") or 0
         self.selling_price = data.get("sellingPrice")
         self.picture = data.get("picture")
         self.weighted = data.get("weighted")
