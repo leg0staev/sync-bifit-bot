@@ -553,6 +553,7 @@ class BifitSession(Request):
             categories.add(category)
 
             if vendor is None:
+                logger.error('Забыл указать производителя')
                 errors[product.nomenclature.name] = 'Забыл указать производителя'
                 vendor = Contactor({'shortName': 'n0 vendor'})
                 logger.debug(f'для товара {product} Забыл указать производителя')
@@ -560,6 +561,7 @@ class BifitSession(Request):
             else:
                 pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name)
                 if pic_url == f'{my_site_url}/images/no-image.jpg':
+                    logger.error('Не нашел картинку на сервере')
                     logger.debug(f'для товара {product} Не нашел картинку на сервере')
                     errors[product.nomenclature.name] = 'Не нашел картинку на сервере'
 
