@@ -83,7 +83,7 @@ class BifitSession(Request):
             logger.debug('в сессии нет данных по организации, пробую получить')
             await self.get_first_bifit_org_async()
         else:
-            logger.debug('нашел данные по торговому объекту в экземпляре класса сессии')
+            logger.debug('нашел данные по организации в экземпляре класса сессии')
         return self.organisation
 
     @property

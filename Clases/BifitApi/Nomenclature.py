@@ -82,3 +82,6 @@ class Nomenclature:
 
     def __eq__(self, other):
         return isinstance(other, Nomenclature) and self.id == other.id
+
+    def __repr__(self):
+        return '%d, %s' % (self.id, self.name)
