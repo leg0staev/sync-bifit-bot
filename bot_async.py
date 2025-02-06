@@ -188,9 +188,12 @@ async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         product = item.get('good')
         vendor = item.get('vendor')
 
-        pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name, to_bot=True)
+        if vendor is not None:
+            pic_url = await get_pic_url(product.nomenclature.short_name, vendor.short_name, to_bot=True)
+        else:
+            pic_url = "Забыл указать производителя"
 
-        message += f"{str(product)}: картинка - {pic_url}\n"
+        message += f"> {str(product)}: картинка - {pic_url}\n"
 
     await update.message.reply_text(message)
 
