@@ -14,7 +14,7 @@ from methods import *
 from methods_async import *
 from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
-    OZON_CLIENT_ID, OZON_ADMIN_KEY, BOT_TOKEN
+    OZON_CLIENT_ID, OZON_ADMIN_KEY, OZON_KEYS_DICT, BOT_TOKEN
 
 
 
@@ -151,7 +151,8 @@ async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if ozon_goods:
             await update.message.reply_text("Нашел товары для Озон")
-            coroutines.add(send_to_ozon_async(OZON_ADMIN_KEY, OZON_CLIENT_ID, ozon_goods))
+            # coroutines.add(send_to_ozon_async(OZON_ADMIN_KEY, OZON_CLIENT_ID, ozon_goods))
+            coroutines.add(send_to_ozon_stores(OZON_KEYS_DICT, ozon_goods))
 
         if ali_goods:
             await update.message.reply_text("Нашел товары для Ali")
