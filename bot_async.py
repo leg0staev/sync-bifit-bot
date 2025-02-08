@@ -17,8 +17,6 @@ from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_T
     OZON_CLIENT_ID, OZON_ADMIN_KEY, OZON_KEYS_DICT, BOT_TOKEN
 
 
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Старт бота, инициализация, получение токена и данных по организации"""
     logger.debug("Старт бота, иницализация")
@@ -240,6 +238,41 @@ async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text(f'создал документ списания!')
 
 
+async def make_write_off_docs_(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Создает документы списания исходя из заказов на маркетах (пока только озон - на несколько магазинов)"""
+    await update.message.reply_text('запрашиваю отправления в ОЗОН и товары в Бифит')
+
+    coroutines = []
+    ozon_sessions = [OzonApiAsync(oz_key, oz_id) for oz_id, oz_key in OZON_KEYS_DICT.items()]
+    coroutines.append(bifit_session.get_bifit_prod_by_marker(('oz',)))
+    coroutines.extend([oz_session.get_all_postings_async() for oz_session in ozon_sessions])
+
+    products, *ozon_postings_list = await asyncio.gather(*coroutines)
+
+    if 'error' in products:
+        await update.message.reply_text(f'Ошибка от Бифит: {products.get("error")}')
+        return None
+
+    postings = []
+    for posting in ozon_postings_list:
+        if 'error' in posting:
+            await update.message.reply_text(f'Ошибка от Озон. не удалось запросить отправления в одном из магазинов')
+        else:
+            postings.extend(posting)
+
+    if not postings:
+        await update.message.reply_text(f'Запросы прошли без ошибок. Отправлений не нашел')
+        return None
+
+    make_docs_responses = await bifit_session.make_ozon_write_off_doc_async(products.get('oz'), postings)
+
+    for resp in make_docs_responses:
+        if 'error' in resp:
+            await update.message.reply_text(f'не смог создать документ: {resp.get("error")}')
+        else:
+            await update.message.reply_text(f'создал документ списания!')
+
+
 async def keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Просто пример клавиатуры))"""
     keyboard = [
@@ -276,7 +309,7 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("pic_links", get_yab_pic_names))
     application.add_handler(CommandHandler("get_yml", get_new_yml))
-    application.add_handler(CommandHandler("make_write_off_docs", make_write_off_docs))
+    application.add_handler(CommandHandler("make_write_off_docs", make_write_off_docs_))
     application.add_handler(CommandHandler("sync", synchronization))
     application.add_handler(
         MessageHandler(filters.Document.MimeType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
