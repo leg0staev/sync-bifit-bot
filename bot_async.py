@@ -14,9 +14,7 @@ from methods import *
 from methods_async import *
 from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
-    OZON_CLIENT_ID, OZON_ADMIN_KEY, BOT_TOKEN
-
-
+    OZON_CLIENT_ID, OZON_ADMIN_KEY, OZON_KEYS_DICT, BOT_TOKEN
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -151,7 +149,7 @@ async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if ozon_goods:
             await update.message.reply_text("Нашел товары для Озон")
-            coroutines.add(send_to_ozon_async(OZON_ADMIN_KEY, OZON_CLIENT_ID, ozon_goods))
+            coroutines.add(send_to_ozon_stores(OZON_KEYS_DICT, ozon_goods))
 
         if ali_goods:
             await update.message.reply_text("Нашел товары для Ali")
@@ -212,25 +210,33 @@ async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text('YML обновлен без ошибок')
 
 
-async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Создает документы списания исходя из заказов на маркетах (пока только озон)"""
+async def make_write_off_docs (update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Создает документы списания исходя из заказов на маркетах (пока только озон - на несколько магазинов)"""
     await update.message.reply_text('запрашиваю отправления в ОЗОН и товары в Бифит')
 
     coroutines = []
-    ozon_session = OzonApiAsync(OZON_ADMIN_KEY, OZON_CLIENT_ID)
+    ozon_sessions = [OzonApiAsync(oz_key, oz_id) for oz_id, oz_key in OZON_KEYS_DICT.items()]
     coroutines.append(bifit_session.get_bifit_prod_by_marker(('oz',)))
-    coroutines.append(ozon_session.get_all_postings_async())
+    coroutines.extend([oz_session.get_all_postings_async() for oz_session in ozon_sessions])
 
-    products, ozon_postings = await asyncio.gather(*coroutines)
+    products, *ozon_postings_list = await asyncio.gather(*coroutines)
 
     if 'error' in products:
         await update.message.reply_text(f'Ошибка от Бифит: {products.get("error")}')
         return None
-    if 'error' in ozon_postings:
-        await update.message.reply_text(f'Ошибка от Озон. не удалось запросить отправления')
+
+    postings = []
+    for posting in ozon_postings_list:
+        if 'error' in posting:
+            await update.message.reply_text(f'Ошибка от Озон. не удалось запросить отправления в одном из магазинов')
+        else:
+            postings.extend(posting)
+
+    if not postings:
+        await update.message.reply_text(f'Запросы прошли без ошибок. Отправлений не нашел')
         return None
 
-    make_docs_responses = await bifit_session.make_ozon_write_off_doc_async(products.get('oz'), ozon_postings)
+    make_docs_responses = await bifit_session.make_ozon_write_off_doc_async(products.get('oz'), postings)
 
     for resp in make_docs_responses:
         if 'error' in resp:

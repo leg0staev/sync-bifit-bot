@@ -1,5 +1,6 @@
+import asyncio
 from collections import namedtuple
-from typing import Generator, AsyncGenerator
+from typing import AsyncGenerator
 from zipfile import BadZipFile
 
 import openpyxl
@@ -84,6 +85,38 @@ async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_good
 
     ozon_warehouses = [Warehouse(w) for w in warehouses_result_list if w.get('status') != "disabled"]
     return await ozon_session.send_remains_async(ozon_products_dict, ozon_goods_dict, ozon_warehouses)
+
+
+async def send_to_ozon_stores(
+        ozon_keys: dict[str, str],
+        ozon_goods_dict: dict[str, int]
+) -> list[dict] | None:
+    """
+    Отправляет данные в магазины Ozon параллельно и собирает возможные ошибки.
+
+    :param ozon_keys: Словарь с ключами доступа к магазинам Ozon (id: key).
+    :param ozon_goods_dict: Словарь с товарами для отправки.
+    :return: Список ошибок, если они есть, либо None.
+    """
+    logger.debug(f'Начал send_to_ozon_stores для %d магазинов.', len(ozon_keys))
+
+    errors_coroutines = [
+        send_to_ozon_async(oz_key, oz_id, ozon_goods_dict)
+        for oz_id, oz_key in ozon_keys.items()
+    ]
+    try:
+        # Запускаем все корутины параллельно и собираем результаты
+        errors = await asyncio.gather(*errors_coroutines, return_exceptions=True)
+    except Exception as e:
+        logger.error("Произошла ошибка при выполнении send_to_ozon_stores: %s", e)
+        return [{"error": "Critical error", "details": str(e)}]
+
+    filtered_errors = [error for error in errors if isinstance(error, dict) or isinstance(error, Exception)]
+    if any(filtered_errors):
+        logger.warning(f'Обнаружены ошибки при отправке данных в Ozon: {filtered_errors}')
+        return filtered_errors
+    logger.debug('Закончил send_to_ozon_stores без ошибок.')
+    return None
 
 
 async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenerator:
