@@ -64,7 +64,7 @@ async def send_to_vk_async(vk_token: str,
 async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_goods_dict: dict[str:int]) -> dict:
     ozon_session = OzonApiAsync(ozon_admin_key, ozon_client_id)
 
-    ozon_products_request = await ozon_session.get_all_products_async()
+    ozon_products_request = await ozon_session.get_all_products_async_v3()
     logger.debug(f' ozon_products_request - {ozon_products_request}')
     if 'error' in ozon_products_request:
         logger.error(f'send_to_ozon_async finished with error - {ozon_products_request}')

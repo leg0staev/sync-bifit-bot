@@ -615,7 +615,7 @@ class BifitSession(Request):
             ozon_products: set[Good],
             ozon_postings: list[Posting],
             execute: bool = False  # нужно ли проводить документ
-    ) -> tuple[dict]:
+    ) -> list[dict]:
         logger.debug(f'начал make_ozon_write_off_doc_async')
         coroutines = set()
 

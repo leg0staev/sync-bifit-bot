@@ -14,11 +14,34 @@ class OzonApiAsync(OzonApi):
     def __init__(self, token: str, id_: str) -> None:
         super(OzonApiAsync, self).__init__(token, id_)
 
-    async def get_all_products_async(self) -> dict:
-        logger.debug('отправляю запрос get_all_products_async в озон')
+    async def get_all_products_async_v2(self) -> dict:
+        logger.debug('отправляю запрос get_all_products_async_v2 в озон')
         async with aiohttp.ClientSession() as session:
-            async with session.post(OzonApi.GET_ALL_PRODUCTS_URL, headers=self.headers) as response:
-                logger.info(f'HTTP Request: POST {OzonApi.GET_ALL_PRODUCTS_URL}, {response.status}')
+            async with session.post(OzonApi.GET_ALL_PRODUCTS_URL_V2, headers=self.headers) as response:
+                logger.info(f'HTTP Request: POST {OzonApi.GET_ALL_PRODUCTS_URL_V2}, {response.status}')
+                try:
+                    response.raise_for_status()
+                except aiohttp.ClientResponseError as e:
+                    logger.error(f'REQUEST ERROR {e}')
+                    return {'error': f'Ошибка запроса товаров в Озон. Ответ сервера - {e}'}
+
+                response_text = await response.text()
+                logger.debug('закончил get_all_products_async в озон')
+                return json.loads(response_text)
+
+    async def get_all_products_async_v3(self) -> dict:
+        logger.debug('отправляю запрос get_all_products_async_v3 в озон')
+
+        body = {
+            "filter": {},
+            "limit": 1000,
+            "last_id": ""
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(OzonApi.GET_ALL_PRODUCTS_URL_V3, headers=self.headers,
+                                    data=json.dumps(body)) as response:
+                logger.info(f'HTTP Request: POST {OzonApi.GET_ALL_PRODUCTS_URL_V3}, {response.status}')
                 try:
                     response.raise_for_status()
                 except aiohttp.ClientResponseError as e:
