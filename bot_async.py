@@ -78,6 +78,49 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                         'он списал вручную!\n'
                                         f'{outdated_goods_set}')
 
+async def handle_document_(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает файл xlsx с ценами
+        важно чтобы колонки назывались 'name', 'barcode', 'selling_price' """
+    await update.message.reply_text("получил новый прайс, обрабатываю")
+
+    document = update.message.document
+
+    if not document.file_name.endswith('.xlsx'):
+        await update.message.reply_text("Отправьте текстовый файл (.xlsx)!")
+        return None
+
+    file = await document.get_file()
+    file_path = f"downloads/received_file.xlsx"
+    await file.download_to_drive(file_path)
+    await update.message.reply_text(f"Файл '{document.file_name}' успешно загружен. Начинаю обработку.")
+    barcodes_dict = await get_barcodes_from_xlsx_async(file_path)
+
+
+    if not barcodes_dict:
+        await update.message.reply_text("не смог получить штрихкоды из xlsx")
+        return None
+
+    await update.message.reply_text("отправляю запрос на получение номенклатур в Бифит")
+    nomenclatures_list = await bifit_session.get_bifit_nomenclatures_by_barcode(list(barcodes_dict.keys()))
+    if nomenclatures_list is None:
+        await update.message.reply_text("не смог получить номенклатуры в Бифит")
+        return None
+
+    price_change_doc_id = await bifit_session.make_price_change_docs_async(nomenclatures_list, barcodes_dict)
+    if price_change_doc_id == -1:
+        await update.message.reply_text("не удалось создать документ изменения цен")
+        return None
+
+    await update.message.reply_text("Создал документ изменения цен. Пытаюсь провести")
+
+    execute_doc_response = await bifit_session.execute_price_change_docs([price_change_doc_id])
+
+    if 'error' in execute_doc_response:
+        await update.message.reply_text("не удалось провести документ изменения цен")
+        return None
+    await update.message.reply_text("Цены изменил!")
+
+
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обрабатывает файл xlsx с ценами
@@ -247,10 +290,10 @@ async def make_write_off_docs (update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Просто пример клавиатуры))"""
-    keyboard = [
+    keyboard_ = [
         [InlineKeyboardButton("да, создать списание", callback_data='make_write_off_document')],
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = InlineKeyboardMarkup(keyboard_)
     await update.message.reply_text('создать документы списания в бифит-касса?', reply_markup=reply_markup)
 
 
@@ -285,7 +328,7 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("sync", synchronization))
     application.add_handler(
         MessageHandler(filters.Document.MimeType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-                       handle_document))
+                       handle_document_))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, write_off))
     application.add_handler(CallbackQueryHandler(handle_callbacks))
     # on non command i.e message - echo the message on Telegram

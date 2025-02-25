@@ -119,7 +119,7 @@ async def send_to_ozon_stores(
     return None
 
 
-async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenerator:
+async def read_xlsx_async(file_path_name: str) -> AsyncGenerator:
     """Генератор, читает файл построчно"""
     logger.debug('начал read_xlsx')
     required_fields = {'barcode', 'selling_price', 'purchase_price'}
@@ -156,10 +156,9 @@ async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenera
     # Пропускаем заголовок
     total_rows = sheet.max_row - 1
     if total_rows == 0:
-        await bot.send_message(chat_id, text="Файл не содержит данных для обработки.")
-        return
-    progress_message = await bot.send_message(chat_id, text="Начинаю обработку файла...")
-    update_frequency = max(1, total_rows // 10)
+        logger.error("Файл не содержит данных для обработки.")
+        raise StopAsyncIteration("Файл не содержит данных для обработки.")
+
 
     for i, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=1):
         # Извлекаем значения для каждого необходимого поля
@@ -172,19 +171,12 @@ async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenera
             logger.debug('excel_good= %s', excel_good)
             yield excel_good
 
-        # Обновление прогресса каждые 10%
-        if i % update_frequency == 0:
-            progress = i / total_rows * 100
-            await bot.edit_message_text(chat_id=chat_id, message_id=progress_message.message_id,
-                                        text=f"Обработка: {progress:.0f}%")
-
-    await bot.edit_message_text(chat_id=chat_id, message_id=progress_message.message_id, text="Файл успешно обработан!")
 
 
-async def get_barcodes_from_xlsx_async(file_path_name: str, chat_id: int, bot) -> dict[str, tuple[float, float]]:
+async def get_barcodes_from_xlsx_async(file_path_name: str,) -> dict[str, tuple[float, float]]:
     logger.debug('начал get_barcodes_from_xlsx')
     excel_goods = {}
-    async for code, selling_price, purchase_price in read_xlsx_async(file_path_name, chat_id, bot):
+    async for code, selling_price, purchase_price in read_xlsx_async(file_path_name):
         excel_goods[code] = (selling_price, purchase_price)
     return excel_goods
 
