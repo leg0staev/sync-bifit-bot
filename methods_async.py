@@ -1,9 +1,11 @@
 import asyncio
 from collections import namedtuple
+from collections.abc import Callable
 from typing import AsyncGenerator
 from zipfile import BadZipFile
 
 import openpyxl
+from telegram import Update
 from transliterate import slugify
 
 from Clases.ApiMarketplaces.Ali.AliApiAsync import AliApiAsync
@@ -119,7 +121,7 @@ async def send_to_ozon_stores(
     return None
 
 
-async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenerator:
+async def read_xlsx_async(file_path_name: str, update: Update) -> AsyncGenerator:
     """Генератор, читает файл построчно"""
     logger.debug('начал read_xlsx')
     required_fields = {'barcode', 'selling_price', 'purchase_price'}
@@ -129,12 +131,15 @@ async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenera
         workbook = openpyxl.load_workbook(file_path_name)
     except FileNotFoundError:
         logger.error('не нашел xlsx')
+        await update.message.reply_text('не нашел xlsx')
         return
     except BadZipFile:
         logger.error('этот файл не xlsx')
+        await update.message.reply_text('этот файл не xlsx')
         return
     else:
-        logger.debug('успешно загрузил xlsx')
+        logger.debug('успешно открыл xlsx')
+        await update.message.reply_text('успешно открыл xlsx')
         sheet = workbook.active
 
     # Получаем заголовки колонок
@@ -145,6 +150,7 @@ async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenera
 
     if missing_fields:
         logger.error('Отсутствуют обязательные поля в файле - %s', missing_fields)
+        await update.message.reply_text(f'Отсутствуют обязательные поля в файле - {missing_fields}')
         return
 
     # Создаем namedtuple динамически
@@ -156,9 +162,11 @@ async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenera
     # Пропускаем заголовок
     total_rows = sheet.max_row - 1
     if total_rows == 0:
-        await bot.send_message(chat_id, text="Файл не содержит данных для обработки.")
+        logger.error("Файл не содержит данных для обработки.")
+        await update.message.reply_text("Файл не содержит данных для обработки.")
         return
-    progress_message = await bot.send_message(chat_id, text="Начинаю обработку файла...")
+
+    progress_message = await update.message.reply_text("Начинаю обработку файла...")
     update_frequency = max(1, total_rows // 10)
 
     for i, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=1):
@@ -175,16 +183,15 @@ async def read_xlsx_async(file_path_name: str, chat_id: int, bot) -> AsyncGenera
         # Обновление прогресса каждые 10%
         if i % update_frequency == 0:
             progress = i / total_rows * 100
-            await bot.edit_message_text(chat_id=chat_id, message_id=progress_message.message_id,
-                                        text=f"Обработка: {progress:.0f}%")
+            await progress_message.edit_text(f"Обработка: {progress:.0f}%")
+            logger.info(f"Обработано {i} строк из {total_rows}, прогресс: {progress:.0f}%")
 
-    await bot.edit_message_text(chat_id=chat_id, message_id=progress_message.message_id, text="Файл успешно обработан!")
+    await progress_message.edit_text("Обработка файла завершена!")
 
-
-async def get_barcodes_from_xlsx_async(file_path_name: str, chat_id: int, bot) -> dict[str, tuple[float, float]]:
+async def get_barcodes_from_xlsx_async(file_path_name: str, update: Update) -> dict[str, tuple[float, float]]:
     logger.debug('начал get_barcodes_from_xlsx')
     excel_goods = {}
-    async for code, selling_price, purchase_price in read_xlsx_async(file_path_name, chat_id, bot):
+    async for code, selling_price, purchase_price in read_xlsx_async(file_path_name, update):
         excel_goods[code] = (selling_price, purchase_price)
     return excel_goods
 
