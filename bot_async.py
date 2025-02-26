@@ -16,7 +16,6 @@ from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
     OZON_CLIENT_ID, OZON_ADMIN_KEY, OZON_KEYS_DICT, BOT_TOKEN
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Старт бота, инициализация, получение токена и данных по организации"""
     logger.debug("Старт бота, иницализация")
@@ -93,7 +92,8 @@ async def handle_document_(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     file_path = f"downloads/received_file.xlsx"
     await file.download_to_drive(file_path)
     await update.message.reply_text(f"Файл '{document.file_name}' успешно загружен. Начинаю обработку.")
-    barcodes_dict = await get_barcodes_from_xlsx_async(file_path)
+
+    barcodes_dict = await get_barcodes_from_xlsx_async(file_path, update)
 
 
     if not barcodes_dict:
