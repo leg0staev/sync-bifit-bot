@@ -1,11 +1,12 @@
 import json
 import time
-from typing import Any
+from typing import Any, Generator
 
 import requests
 
 from Clases.ApiMarketplaces.Ozon.SendStocksResponce import SendStocksResponse
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
+from Clases.BifitApi.Good import Good
 
 
 class OzonApi:
@@ -79,7 +80,7 @@ class OzonApi:
         return distribution
 
     @staticmethod
-    def chunk_stocks(stock_list: list[dict], chunk_size: int) -> list[dict]:
+    def chunk_stocks(stock_list: list[dict], chunk_size: int) -> Generator[list[dict]]:
         for i in range(0, len(stock_list), chunk_size):
             yield stock_list[i:i + chunk_size]
 
@@ -102,6 +103,29 @@ class OzonApi:
                     }
                     result_list.append(item)
         return result_list
+
+    @staticmethod
+    def get_remains_list_v2(prod_dict: dict[str, str],
+                         ozon_goods: set[Good],
+                         warehouses: list[Warehouse]) -> list:
+        result_list = []
+        for good in ozon_goods:
+            if good.nomenclature.barcode in prod_dict:
+
+                remains = good.goods.quantity
+
+                remains_distribution = OzonApi.distribute_remains(remains,
+                                                                  len(warehouses))
+                for w, remains_to_upload in zip(warehouses, remains_distribution):
+                    item = {
+                        "offer_id": good.nomenclature.barcode,
+                        "product_id": prod_dict.get(good.nomenclature.barcode),
+                        "stock": remains_to_upload,
+                        "warehouse_id": w.id,
+                    }
+                    result_list.append(item)
+        return result_list
+
 
     @staticmethod
     def check_sand_remains_response(response: dict) -> None | dict[str, str]:

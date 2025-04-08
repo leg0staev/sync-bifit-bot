@@ -1,18 +1,22 @@
 import asyncio
-import aiohttp
 import json
-
 from typing import Dict
-from logger import logger
+
+import aiohttp
 
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ali.AliProduct import AliProduct
+from Clases.BifitApi.Good import Good
+from logger import logger
 
 
 class AliApiAsync(AliApi):
 
-    def __init__(self, token: str, products_dict: dict[str, int] = None) -> None:
-        super(AliApiAsync, self).__init__(token, products_dict)
+    def __init__(self,
+                 token: str,
+                 products_dict: dict[str, int] = None,
+                 product_set: set[Good] = None) -> None:
+        super(AliApiAsync, self).__init__(token, products_dict, product_set)
 
     async def fill_get_products_to_send(self):
         logger.debug('fill_get_products_to_send (AliApiAsync) started')

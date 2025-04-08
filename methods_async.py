@@ -1,6 +1,5 @@
 import asyncio
 from collections import namedtuple
-from collections.abc import Callable
 from typing import AsyncGenerator
 from zipfile import BadZipFile
 
@@ -15,6 +14,7 @@ from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
 from Clases.ApiMarketplaces.Vk.VkApiAsync import VkApiAsync
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
 from Clases.ApiMarketplaces.Ya.YAapiAsync import YAapiAsync
+from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Request import Request
 from logger import logger
 
@@ -34,6 +34,29 @@ async def send_to_yandex_async(ya_token: str,
     """
     logger.debug(f'send_to_yandex_async started')
     ya_api = YAapiAsync(ya_token, ya_campaign_id, ya_warehouse_id, goods_dict=ya_goods_dict)
+    ya_send_remains_response = await ya_api.send_remains_async()
+    if 'errors' in ya_send_remains_response:
+        logger.error(f'ошибка на этапе отправки товаров в Яндекс - {ya_send_remains_response}')
+        return ya_send_remains_response
+    logger.debug(f'send_to_yandex_async finished smoothly')
+    return {}
+
+
+async def send_to_yandex_async_v2(ya_token: str,
+                                  ya_campaign_id: int,
+                                  ya_warehouse_id: int,
+                                  ya_goods_set: set[Good]) -> dict:
+    """
+    Отправляет данные об остатках товаров на складе в Яндекс.Маркет.
+
+    :param ya_token: токен для доступа к API Яндекс.Маркета
+    :param ya_campaign_id: идентификатор кампании в Яндекс.Маркете
+    :param ya_warehouse_id: идентификатор склада в Яндекс.Маркете
+    :param ya_goods_set: множество товаров Яндекс-маркета
+    :return: словарь с ответом сервера, в случае с ошибки или пустой словарь, если ошибок нет
+    """
+    logger.debug(f'send_to_yandex_async started')
+    ya_api = YAapiAsync(ya_token, ya_campaign_id, ya_warehouse_id, goods_set=ya_goods_set)
     ya_send_remains_response = await ya_api.send_remains_async()
     if 'errors' in ya_send_remains_response:
         logger.error(f'ошибка на этапе отправки товаров в Яндекс - {ya_send_remains_response}')
@@ -76,6 +99,32 @@ async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_good
     except KeyError as e:
         logger.error(f'Ошибка в ответе сервера на запрос товаров Озон - {e}')
         return {'error': f'Ошибка в ответе сервера на запрос товаров Озон - {str(e)}'}
+    products_dict_from_ozon = ozon_products_response.get_skus_id_dict()
+    logger.debug(f' ozon_products_dict - {products_dict_from_ozon}')
+    ozon_warehouses_response = await ozon_session.get_warehouses_async()
+    logger.debug(f' ozon_warehouses_response - {ozon_warehouses_response}')
+    warehouses_result_list = ozon_warehouses_response.get('result')
+    if not warehouses_result_list:
+        logger.error(f'Ошибка в ответе сервера на запрос списка складов Озон - {ozon_warehouses_response}')
+        return {'error': f'Ошибка в ответе сервера на запрос списка складов - {ozon_warehouses_response}'}
+
+    ozon_warehouses = [Warehouse(w) for w in warehouses_result_list if w.get('status') != "disabled"]
+    return await ozon_session.send_remains_async(products_dict_from_ozon, ozon_goods_dict, ozon_warehouses)
+
+
+async def send_to_ozon_async_v2(ozon_admin_key: str, ozon_client_id: str, ozon_goods_set: set[Good]) -> dict:
+    ozon_session = OzonApiAsync(ozon_admin_key, ozon_client_id)
+
+    ozon_products_request = await ozon_session.get_all_products_async_v3()
+    logger.debug(f' ozon_products_request - {ozon_products_request}')
+    if 'error' in ozon_products_request:
+        logger.error(f'send_to_ozon_async finished with error - {ozon_products_request}')
+        return ozon_products_request
+    try:
+        ozon_products_response = OzonProdResponse(ozon_products_request)
+    except KeyError as e:
+        logger.error(f'Ошибка в ответе сервера на запрос товаров Озон - {e}')
+        return {'error': f'Ошибка в ответе сервера на запрос товаров Озон - {str(e)}'}
     ozon_products_dict = ozon_products_response.get_skus_id_dict()
     logger.debug(f' ozon_products_dict - {ozon_products_dict}')
     ozon_warehouses_response = await ozon_session.get_warehouses_async()
@@ -86,8 +135,7 @@ async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_good
         return {'error': f'Ошибка в ответе сервера на запрос списка складов - {ozon_warehouses_response}'}
 
     ozon_warehouses = [Warehouse(w) for w in warehouses_result_list if w.get('status') != "disabled"]
-    return await ozon_session.send_remains_async(ozon_products_dict, ozon_goods_dict, ozon_warehouses)
-
+    return await ozon_session.send_remains_async_v2(ozon_products_dict, ozon_goods_set, ozon_warehouses)
 
 async def send_to_ozon_stores(
         ozon_keys: dict[str, str],
@@ -104,6 +152,69 @@ async def send_to_ozon_stores(
 
     errors_coroutines = [
         send_to_ozon_async(oz_key, oz_id, ozon_goods_dict)
+        for oz_id, oz_key in ozon_keys.items()
+    ]
+    try:
+        # Запускаем все корутины параллельно и собираем результаты
+        errors = await asyncio.gather(*errors_coroutines, return_exceptions=True)
+    except Exception as e:
+        logger.error("Произошла ошибка при выполнении send_to_ozon_stores: %s", e)
+        return [{"error": "Critical error", "details": str(e)}]
+
+    filtered_errors = [error for error in errors if isinstance(error, dict) or isinstance(error, Exception)]
+    if any(filtered_errors):
+        logger.warning(f'Обнаружены ошибки при отправке данных в Ozon: {filtered_errors}')
+        return filtered_errors
+    logger.debug('Закончил send_to_ozon_stores без ошибок.')
+    return None
+
+async def send_to_ozon_stores_v2(
+        ozon_keys: dict[str, str],
+        ozon_goods_set: set[Good]
+) -> list[dict] | None:
+    """
+    Отправляет данные в магазины Ozon параллельно и собирает возможные ошибки.
+
+    :param ozon_keys: Словарь с ключами доступа к магазинам Ozon (id: key).
+    :param ozon_goods_set: Словарь с товарами для отправки.
+    :return: Список ошибок, если они есть, либо None.
+    """
+    logger.debug(f'Начал send_to_ozon_stores для %d магазинов.', len(ozon_keys))
+
+    errors_coroutines = [
+        send_to_ozon_async(oz_key, oz_id, ozon_goods_set)
+        for oz_id, oz_key in ozon_keys.items()
+    ]
+    try:
+        # Запускаем все корутины параллельно и собираем результаты
+        errors = await asyncio.gather(*errors_coroutines, return_exceptions=True)
+    except Exception as e:
+        logger.error("Произошла ошибка при выполнении send_to_ozon_stores: %s", e)
+        return [{"error": "Critical error", "details": str(e)}]
+
+    filtered_errors = [error for error in errors if isinstance(error, dict) or isinstance(error, Exception)]
+    if any(filtered_errors):
+        logger.warning(f'Обнаружены ошибки при отправке данных в Ozon: {filtered_errors}')
+        return filtered_errors
+    logger.debug('Закончил send_to_ozon_stores без ошибок.')
+    return None
+
+
+
+async def send_to_ozon_stores_v2(
+        ozon_keys: dict[str, str],
+        ozon_goods_set: set[Good]) -> list[dict] | None:
+    """
+    Отправляет данные в магазины Ozon параллельно и собирает возможные ошибки.
+
+    :param ozon_keys: Словарь с ключами доступа к магазинам Ozon (id: key).
+    :param ozon_goods_set: Множество с товарами для отправки.
+    :return: Список ошибок, если они есть, либо None.
+    """
+    logger.debug(f'Начал send_to_ozon_stores для %d магазинов.', len(ozon_keys))
+
+    errors_coroutines = [
+        send_to_ozon_async_v2(oz_key, oz_id, ozon_goods_set)
         for oz_id, oz_key in ozon_keys.items()
     ]
     try:
@@ -188,6 +299,7 @@ async def read_xlsx_async(file_path_name: str, update: Update) -> AsyncGenerator
 
     await progress_message.edit_text("Обработка файла завершена!")
 
+
 async def get_barcodes_from_xlsx_async(file_path_name: str, update: Update) -> dict[str, tuple[float, float]]:
     logger.debug('начал get_barcodes_from_xlsx')
     excel_goods = {}
@@ -197,7 +309,15 @@ async def get_barcodes_from_xlsx_async(file_path_name: str, update: Update) -> d
 
 
 async def send_to_ali_async(ali_token: str, ali_goods_dict: dict[str:int]) -> dict:
-    ali_api = AliApiAsync(ali_token, ali_goods_dict)
+    ali_api = AliApiAsync(ali_token, products_dict=ali_goods_dict)
+    err = await ali_api.fill_get_products_to_send()
+    if err:
+        return err
+    return await ali_api.send_remains_async()
+
+
+async def send_to_ali_async_v2(ali_token: str, ali_goods_set: set[Good]) -> dict:
+    ali_api = AliApiAsync(ali_token, product_set=ali_goods_set)
     err = await ali_api.fill_get_products_to_send()
     if err:
         return err

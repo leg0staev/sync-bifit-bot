@@ -1,12 +1,11 @@
 """
 Бот синхронизации склада Бифит-кассы со складами маркетплэйсов.
 """
-import asyncio
 import threading
 
 import uvicorn
 # from logger import logger
-from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 from fastapi_app.app import app
@@ -14,7 +13,8 @@ from methods import *
 from methods_async import *
 from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
-    OZON_CLIENT_ID, OZON_ADMIN_KEY, OZON_KEYS_DICT, BOT_TOKEN
+    OZON_KEYS_DICT, BOT_TOKEN
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Старт бота, инициализация, получение токена и данных по организации"""
@@ -77,6 +77,7 @@ async def write_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                         'он списал вручную!\n'
                                         f'{outdated_goods_set}')
 
+
 async def handle_document_(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обрабатывает файл xlsx с ценами
         важно чтобы колонки назывались 'name', 'barcode', 'selling_price' """
@@ -94,7 +95,6 @@ async def handle_document_(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await update.message.reply_text(f"Файл '{document.file_name}' успешно загружен. Начинаю обработку.")
 
     barcodes_dict = await get_barcodes_from_xlsx_async(file_path, update)
-
 
     if not barcodes_dict:
         await update.message.reply_text("не смог получить штрихкоды из xlsx")
@@ -119,7 +119,6 @@ async def handle_document_(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text("не удалось провести документ изменения цен")
         return None
     await update.message.reply_text("Цены изменил!")
-
 
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -169,7 +168,8 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 
-    market_prod_dict = await bifit_session.get_bifit_prod_by_marker(("ya", "oz", "ali", "vk"))
+    market_prod_dict: dict[str, Good] | dict[str, Good] = await bifit_session.get_bifit_prod_by_marker(
+        ("ya", "oz", "ali", "vk"))
 
     if 'error' in market_prod_dict:
         await update.message.reply_text(f"не получил список товаров от Бифит. ошибка"
@@ -193,6 +193,54 @@ async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if ozon_goods:
             await update.message.reply_text("Нашел товары для Озон")
             coroutines.add(send_to_ozon_stores(OZON_KEYS_DICT, ozon_goods))
+
+        if ali_goods:
+            await update.message.reply_text("Нашел товары для Ali")
+            coroutines.add(send_to_ali_async(ALI_TOKEN, ali_goods))
+
+        if vk_goods:
+            await update.message.reply_text("Нашел товары для ВК")
+            coroutines.add(send_to_vk_async(VK_TOKEN, VK_OWNER_ID, VK_API_VER, vk_goods))
+
+        if coroutines:
+            await update.message.reply_text("Отправляю все остатки")
+            errors = await asyncio.gather(*coroutines)
+            if any(errors):
+                await update.message.reply_text("возникли ошибки при отправке данных:\n"
+                                                "{Яндекс}, {Озон}, {Али}, {Вк}"
+                                                f"{errors}")
+            else:
+                await update.message.reply_text("Отправка прошла без ошибок!")
+
+
+async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
+
+    market_prod_dict: dict[str, set[Good]] | dict[str, str] = await bifit_session.get_bifit_prod_by_marker(
+        ("ya", "oz", "ali", "vk"))
+
+    if 'error' in market_prod_dict:
+        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка"
+                                        f" тапни /sync чтобы попробовать еще раз")
+        return None
+
+    else:
+        await update.message.reply_text("получил товары из бифит")
+
+        ya_goods: set[Good] = market_prod_dict.get('ya')
+        ali_goods: set[Good] = market_prod_dict.get('ali')
+        vk_goods: set[Good] = market_prod_dict.get('vk')
+        ozon_goods: set[Good] = market_prod_dict.get('oz')
+
+        coroutines = set()
+
+        if ya_goods:
+            await update.message.reply_text("Нашел товары для Яндекс")
+            coroutines.add(send_to_yandex_async_v2(YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ya_goods))
+
+        if ozon_goods:
+            await update.message.reply_text("Нашел товары для Озон")
+            coroutines.add(send_to_ozon_stores_v2(OZON_KEYS_DICT, ozon_goods))
 
         if ali_goods:
             await update.message.reply_text("Нашел товары для Ali")
@@ -253,7 +301,7 @@ async def get_new_yml(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text('YML обновлен без ошибок')
 
 
-async def make_write_off_docs (update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def make_write_off_docs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Создает документы списания исходя из заказов на маркетах (пока только озон - на несколько магазинов)"""
     await update.message.reply_text('запрашиваю отправления в ОЗОН и товары в Бифит')
 
