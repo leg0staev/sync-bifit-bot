@@ -8,15 +8,15 @@ from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ali.AliProduct import AliProduct
 from Clases.BifitApi.Good import Good
 from logger import logger
+from methods.sync_methods import get_market_goods_dict
 
 
 class AliApiAsync(AliApi):
 
     def __init__(self,
                  token: str,
-                 products_dict: dict[str, int] = None,
-                 product_set: set[Good] = None) -> None:
-        super(AliApiAsync, self).__init__(token, products_dict, product_set)
+                 products_dict: dict[str, int] = None) -> None:
+        super().__init__(token, products_dict)
 
     async def fill_get_products_to_send(self):
         logger.debug('fill_get_products_to_send (AliApiAsync) started')
@@ -76,3 +76,10 @@ class AliApiAsync(AliApi):
                 response_text = await response.text()
                 logger.debug('send_remains_async to ali finished')
                 return json.loads(response_text)
+
+    @classmethod
+    def from_goods_set(cls, token: str, ali_goods_from_bifit: set[Good]) -> 'AliApiAsync':
+        dict_with_prod = get_market_goods_dict(ali_goods_from_bifit)
+        api = cls(token, dict_with_prod)
+        api.bifit_products_set = ali_goods_from_bifit
+        return api

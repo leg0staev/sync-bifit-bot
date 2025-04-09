@@ -16,8 +16,7 @@ class AliApi:
 
     def __init__(self,
                  token: str,
-                 products_dict: dict[str, int] = None,
-                 product_set: set[Good] = None) -> None:
+                 products_dict: dict[str, int]) -> None:
         """
             Инициализация класса AliApi.
 
@@ -28,7 +27,7 @@ class AliApi:
         self.token = token
         self.errors = {}
         self.bifit_products_dict: dict[str, int] | None = products_dict
-        self.bifit_products_set: set[Good] | None = product_set
+        self.bifit_products_set: set[Good] | None = None
 
         content_values = list(self.bifit_products_dict.keys()) or \
                          [good.nomenclature.barcode for good in product_set]

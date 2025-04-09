@@ -85,6 +85,27 @@ async def send_to_vk_async(vk_token: str,
     logger.debug('send_to_vk_async finished smoothly')
     return await vk_api.send_remains_async(vk_products_dict, vk_goods_dict)
 
+async def send_to_vk_async_v2(vk_token: str,
+                           vk_owner_id: int,
+                           vk_api_ver: float,
+                           vk_goods_set: set[Good]) -> dict:
+    logger.debug('send_to_vk_async started')
+    vk_api = VkApiAsync(vk_token, vk_owner_id, vk_api_ver)
+    vk_products_response = await vk_api.get_all_products_async()
+    if 'error' in vk_products_response:
+        logger.error(f'ошибка на этапе запроса товаров в ВК - {vk_products_response}')
+        return vk_products_response
+    try:
+        vk_response = VkProdResponse(vk_products_response)
+    except KeyError as e:
+        logger.error(f'Ошибка в ответе сервера на запрос товаров ВК - {e}')
+        logger.debug('send_to_vk_async finished with exception')
+        return {'error': f'Ошибка в ответе сервера на запрос товаров ВК - {str(e)}'}
+    vk_products_dict = vk_response.get_skus_id_dict()
+    logger.debug('vk_products_dict:\n%s', vk_products_dict)
+    logger.debug('send_to_vk_async finished smoothly')
+    return await vk_api.send_remains_async_v2(vk_products_dict, vk_goods_set)
+
 
 async def send_to_ozon_async(ozon_admin_key: str, ozon_client_id: str, ozon_goods_dict: dict[str:int]) -> dict:
     ozon_session = OzonApiAsync(ozon_admin_key, ozon_client_id)
@@ -317,7 +338,7 @@ async def send_to_ali_async(ali_token: str, ali_goods_dict: dict[str:int]) -> di
 
 
 async def send_to_ali_async_v2(ali_token: str, ali_goods_set: set[Good]) -> dict:
-    ali_api = AliApiAsync(ali_token, product_set=ali_goods_set)
+    ali_api = AliApiAsync.from_goods_set(ali_token, ali_goods_set)
     err = await ali_api.fill_get_products_to_send()
     if err:
         return err

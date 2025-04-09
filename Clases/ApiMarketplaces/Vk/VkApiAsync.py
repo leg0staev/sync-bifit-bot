@@ -4,7 +4,9 @@ import json
 import aiohttp
 
 from Clases.ApiMarketplaces.Vk.VkApi import VkApi
+from Clases.BifitApi.Good import Good
 from logger import logger
+from methods.sync_methods import get_selling_price
 
 
 class VkApiAsync(VkApi):
@@ -29,11 +31,12 @@ class VkApiAsync(VkApi):
                     logger.error(f"ошибка получения товаров в ВК: {str(e)}")
                     return {'error': f'ошибка получения товаров в ВК - {str(e)}'}
                 response_text = await response.text()
-                # logger.debug(f'{response_text=}')
                 logger.debug('get_all_products_async (VkApiAsync) finished')
                 return json.loads(response_text)
 
-    async def send_remains_async(self, vk_prod_dict: dict[str, str], bifit_remains: dict[str, int]) -> dict[str, dict[str, str]]:
+    async def send_remains_async(self,
+                                 vk_prod_dict: dict[str, str],
+                                 bifit_remains: dict[str, int]) -> dict[str, dict[str, str]]:
         """Send remaining stock to VK asynchronously."""
         logger.debug('send_remains_async (VkApiAsync) started')
 
@@ -65,6 +68,50 @@ class VkApiAsync(VkApi):
                         if error:
                             errors[product_sku] = error
                             logger.error(f'PRODUCT {product_sku} - {error}')
+            await asyncio.sleep(0.3)
+
+        logger.debug('send_remains_async (VkApiAsync) finished')
+        return errors
+
+    async def send_remains_async_v2(self,
+                                    vk_prod_dict: dict[str, str],
+                                    bifit_remains: set[Good]) -> dict[str, dict[str, str]]:
+        """Send remaining stock to VK asynchronously."""
+        logger.debug('send_remains_async (VkApiAsync) started')
+
+        errors = {}
+
+        for good in bifit_remains:
+            if good.nomenclature.barcode in vk_prod_dict:
+
+                params = {
+                    'owner_id': self.owner_id,
+                    'v': self.api_version,
+                    'item_id': vk_prod_dict.get(good.nomenclature.barcode),
+                    'stock_amount': good.goods.quantity,
+                    'price': get_selling_price(good)
+                }
+                logger.debug('штрихкод товара: %s\n'
+                             'params: %s\n', good.nomenclature.barcode, params)
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(VkApi.EDIT_PRODUCT_URL, headers=self.headers, params=params) as response:
+                        logger.info(
+                            f"HTTP Request: POST {VkApi.EDIT_PRODUCT_URL}, \
+                                {response.status}, PRODUCT {good.nomenclature.barcode}")
+                        try:
+                            response.raise_for_status()
+                        except aiohttp.ClientResponseError as e:
+                            logger.error(f"VkApiAsync Request error: {str(e)}")
+                            errors[good.nomenclature.barcode] = {'Ошибка обновления товара': str(e)}
+
+                        content = await response.text()
+                        response_json = json.loads(content)
+                        logger.debug(f'Server response: {response_json}')
+                        error = VkApiAsync.check_errors(response_json)
+                        if error:
+                            errors[good.nomenclature.barcode] = error
+                            logger.error(f'PRODUCT {good.nomenclature.barcode} - {error}')
             await asyncio.sleep(0.3)
 
         logger.debug('send_remains_async (VkApiAsync) finished')

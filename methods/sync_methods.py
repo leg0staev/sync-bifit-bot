@@ -21,7 +21,6 @@ from Clases.BifitApi.Organization import *
 from Clases.BifitApi.TradeObjListReq import TradeObjListReq
 from Clases.BifitApi.TradeObject import *
 from logger import logger
-from methods_async import read_xlsx_async
 
 
 def get_bifit_token(username: str, pswd: bytes) -> str:
@@ -370,3 +369,17 @@ def make_price_change_items_new(nomanclatures: list[Nomenclature], codes: dict):
 
     logger.debug('закончил make_price_change_items_new')
     return items
+
+def get_selling_price(product: Good) -> float:
+    """
+    Получает цену продажи товара из объекта товара. Если есть данные по торговым объектам,
+    то берет цену первого попавшегося объекта. Если нет, то возвращает цену, указанную при создании товара.
+    :param product: Объект товара Бифит-кассы
+    :returns: Цена товара числом
+    """
+    if product.nomenclature.trade_object_relations:
+        trade_objects = product.nomenclature.trade_object_relations
+        prices = {obj.get('tradeObjectId'): obj.get('sellingPrice') for obj in trade_objects}
+        trade_object_id = next(iter(prices)) #Заглушка, далее логика может быть изменена
+        return prices.get(trade_object_id)
+    return product.nomenclature.selling_price

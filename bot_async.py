@@ -2,6 +2,7 @@
 Бот синхронизации склада Бифит-кассы со складами маркетплэйсов.
 """
 import threading
+import time
 
 import uvicorn
 # from logger import logger
@@ -9,8 +10,8 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 from fastapi_app.app import app
-from methods import *
-from methods_async import *
+from methods.sync_methods import *
+from methods.methods_async import *
 from sessions import bifit_session
 from settings import YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ALI_TOKEN, VK_TOKEN, VK_OWNER_ID, VK_API_VER, \
     OZON_KEYS_DICT, BOT_TOKEN
@@ -228,27 +229,26 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("получил товары из бифит")
 
         ya_goods: set[Good] = market_prod_dict.get('ya')
+        await update.message.reply_text(f"количество товаров для яндекс - {len(ya_goods)}")
         ali_goods: set[Good] = market_prod_dict.get('ali')
+        await update.message.reply_text(f"количество товаров для али - {len(ali_goods)}")
         vk_goods: set[Good] = market_prod_dict.get('vk')
+        await update.message.reply_text(f"количество товаров для вк - {len(ali_goods)}")
         ozon_goods: set[Good] = market_prod_dict.get('oz')
-
+        await update.message.reply_text(f"количество товаров для озон - {len(ozon_goods)}")
         coroutines = set()
 
         if ya_goods:
-            await update.message.reply_text("Нашел товары для Яндекс")
             coroutines.add(send_to_yandex_async_v2(YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ya_goods))
 
         if ozon_goods:
-            await update.message.reply_text("Нашел товары для Озон")
             coroutines.add(send_to_ozon_stores_v2(OZON_KEYS_DICT, ozon_goods))
 
         if ali_goods:
-            await update.message.reply_text("Нашел товары для Ali")
-            coroutines.add(send_to_ali_async(ALI_TOKEN, ali_goods))
+            coroutines.add(send_to_ali_async_v2(ALI_TOKEN, ali_goods))
 
         if vk_goods:
-            await update.message.reply_text("Нашел товары для ВК")
-            coroutines.add(send_to_vk_async(VK_TOKEN, VK_OWNER_ID, VK_API_VER, vk_goods))
+            coroutines.add(send_to_vk_async_v2(VK_TOKEN, VK_OWNER_ID, VK_API_VER, vk_goods))
 
         if coroutines:
             await update.message.reply_text("Отправляю все остатки")
@@ -373,7 +373,8 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("pic_links", get_yab_pic_names))
     application.add_handler(CommandHandler("get_yml", get_new_yml))
     application.add_handler(CommandHandler("make_write_off_docs", make_write_off_docs))
-    application.add_handler(CommandHandler("sync", synchronization))
+    # application.add_handler(CommandHandler("sync", synchronization))
+    application.add_handler(CommandHandler("sync", sync))
     application.add_handler(
         MessageHandler(filters.Document.MimeType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
                        handle_document_))
