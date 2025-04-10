@@ -1,4 +1,4 @@
-FROM python:slim-bookworm
+FROM python:slim-bullseye
 
 RUN apt-get update && apt-get install -y gcc
 
