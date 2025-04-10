@@ -8,6 +8,7 @@ from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
 from Clases.ApiMarketplaces.Ozon.Posting import Posting
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
+from Clases.ApiMarketplaces.Vk.VKProduct import VkProduct
 from Clases.ApiMarketplaces.Vk.VkApi import VkApi
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
 from Clases.ApiMarketplaces.Ya.YAapi import YAapi
@@ -383,3 +384,9 @@ def get_selling_price(product: Good) -> float:
         trade_object_id = next(iter(prices)) #Заглушка, далее логика может быть изменена
         return prices.get(trade_object_id)
     return product.nomenclature.selling_price
+
+def get_vk_skus_id_dict(vk_prod: list[VkProduct]) -> dict[str:str]:
+    logger.debug('формирую словарь {штрихкод: вк id}')
+    d = {product.sku: product.id for product in vk_prod}
+    logger.debug('количество товаров в словаре - %d', len(d))
+    return d

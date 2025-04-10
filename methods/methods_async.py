@@ -11,12 +11,14 @@ from Clases.ApiMarketplaces.Ali.AliApiAsync import AliApiAsync
 from Clases.ApiMarketplaces.Ozon.OzonApiAsync import OzonApiAsync
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
+from Clases.ApiMarketplaces.Vk.VKProduct import VkProduct
 from Clases.ApiMarketplaces.Vk.VkApiAsync import VkApiAsync
 from Clases.ApiMarketplaces.Vk.VkProdResponce import VkProdResponse
 from Clases.ApiMarketplaces.Ya.YAapiAsync import YAapiAsync
 from Clases.BifitApi.Good import Good
 from Clases.BifitApi.Request import Request
 from logger import logger
+from methods.sync_methods import get_vk_skus_id_dict
 
 
 async def send_to_yandex_async(ya_token: str,
@@ -91,17 +93,17 @@ async def send_to_vk_async_v2(vk_token: str,
                            vk_goods_set: set[Good]) -> dict:
     logger.debug('send_to_vk_async started')
     vk_api = VkApiAsync(vk_token, vk_owner_id, vk_api_ver)
-    vk_products_response = await vk_api.get_all_products_async()
-    if 'error' in vk_products_response:
-        logger.error(f'ошибка на этапе запроса товаров в ВК - {vk_products_response}')
-        return vk_products_response
+    vk_products_items = await vk_api.get_all_products_async()
+    if 'error' in vk_products_items:
+        logger.error(f'ошибка на этапе запроса товаров в ВК - {vk_products_items[1]}')
+        return {'error': f'Ошибка в ответе сервера на запрос товаров ВК - {vk_products_items[1]}'}
     try:
-        vk_response = VkProdResponse(vk_products_response)
+        vk_products = [VkProduct(item) for item in vk_products_items]
     except KeyError as e:
-        logger.error(f'Ошибка в ответе сервера на запрос товаров ВК - {e}')
+        logger.error(f'Ошибка формирования списка товаров - {e}')
         logger.debug('send_to_vk_async finished with exception')
-        return {'error': f'Ошибка в ответе сервера на запрос товаров ВК - {str(e)}'}
-    vk_products_dict = vk_response.get_skus_id_dict()
+        return {'error': f'Ошибка формирования списка товаров ВК - {str(e)}'}
+    vk_products_dict = get_vk_skus_id_dict(vk_products)
     logger.debug('vk_products_dict:\n%s', vk_products_dict)
     logger.debug('send_to_vk_async finished smoothly')
     return await vk_api.send_remains_async_v2(vk_products_dict, vk_goods_set)
