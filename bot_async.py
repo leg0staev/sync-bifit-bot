@@ -165,55 +165,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return None
     await update.message.reply_text("Цены изменил!")
 
-
-async def synchronization(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
-
-    market_prod_dict: dict[str, Good] | dict[str, Good] = await bifit_session.get_bifit_prod_by_marker(
-        ("ya", "oz", "ali", "vk"))
-
-    if 'error' in market_prod_dict:
-        await update.message.reply_text(f"не получил список товаров от Бифит. ошибка"
-                                        f" тапни /sync чтобы попробовать еще раз")
-        return None
-
-    else:
-        await update.message.reply_text("получил товары из бифит")
-
-        ya_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('ya'))
-        ali_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('ali'))
-        vk_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('vk'))
-        ozon_goods: dict[str, int] = get_market_goods_dict(market_prod_dict.get('oz'))
-
-        coroutines = set()
-
-        if ya_goods:
-            await update.message.reply_text("Нашел товары для Яндекс")
-            coroutines.add(send_to_yandex_async(YA_TOKEN, YA_CAMPAIGN_ID, YA_WHEREHOUSE_ID, ya_goods))
-
-        if ozon_goods:
-            await update.message.reply_text("Нашел товары для Озон")
-            coroutines.add(send_to_ozon_stores(OZON_KEYS_DICT, ozon_goods))
-
-        if ali_goods:
-            await update.message.reply_text("Нашел товары для Ali")
-            coroutines.add(send_to_ali_async(ALI_TOKEN, ali_goods))
-
-        if vk_goods:
-            await update.message.reply_text("Нашел товары для ВК")
-            coroutines.add(send_to_vk_async(VK_TOKEN, VK_OWNER_ID, VK_API_VER, vk_goods))
-
-        if coroutines:
-            await update.message.reply_text("Отправляю все остатки")
-            errors = await asyncio.gather(*coroutines)
-            if any(errors):
-                await update.message.reply_text("возникли ошибки при отправке данных:\n"
-                                                "{Яндекс}, {Озон}, {Али}, {Вк}"
-                                                f"{errors}")
-            else:
-                await update.message.reply_text("Отправка прошла без ошибок!")
-
-
 async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Запускает процесс полной синхронизации всех маркетплэйсов со складом бифит-кассы"""
 

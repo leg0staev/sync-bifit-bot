@@ -63,45 +63,6 @@ class VkApiAsync(VkApi):
         return vk_products_items
 
 
-    async def send_remains_async(self,
-                                 vk_prod_dict: dict[str, str],
-                                 bifit_remains: dict[str, int]) -> dict[str, dict[str, str]]:
-        """Send remaining stock to VK asynchronously."""
-        logger.debug('send_remains_async (VkApiAsync) started')
-
-        errors = {}
-
-        for product_sku, vk_item_id in vk_prod_dict.items():
-            if product_sku in bifit_remains:
-                params = {
-                    'owner_id': self.owner_id,
-                    'v': self.api_version,
-                    'item_id': vk_item_id,
-                    'stock_amount': bifit_remains[product_sku]
-                }
-
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(VkApi.EDIT_PRODUCT_URL, headers=self.headers, params=params) as response:
-                        logger.info(
-                            f"HTTP Request: POST {VkApi.EDIT_PRODUCT_URL}, {response.status}, PRODUCT {product_sku}")
-                        try:
-                            response.raise_for_status()
-                        except aiohttp.ClientResponseError as e:
-                            logger.error(f"VkApiAsync Request error: {str(e)}")
-                            errors[product_sku] = {'Ошибка обновления товара': str(e)}
-
-                        content = await response.text()
-                        response_json = json.loads(content)
-                        logger.debug(f'Server response: {response_json}')
-                        error = VkApiAsync.check_errors(response_json)
-                        if error:
-                            errors[product_sku] = error
-                            logger.error(f'PRODUCT {product_sku} - {error}')
-            await asyncio.sleep(VkApiAsync.DELAY)
-
-        logger.debug('send_remains_async (VkApiAsync) finished')
-        return errors
-
     async def send_remains_async_v2(self,
                                     vk_prod_dict: dict[str, str],
                                     bifit_remains: set[Good]) -> dict[str, dict]:
