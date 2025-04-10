@@ -5,17 +5,26 @@ from Clases.ApiMarketplaces.Vk.ItemRating import ItemRating
 
 class VkProduct:
     def __init__(self, data) -> None:
-        self.availability = data['availability']
+        self.availability = data.get('availability')
         self.category = Category(data['category'])
-        self.description = data['description']
-        self.id = data['id']
-        self.owner_id = data['owner_id']
-        self.price = Price(data['price'])
-        self.title = data['title']
-        self.date = data['date']
-        self.is_owner = data['is_owner']
-        self.is_adult = data['is_adult']
-        self.thumb_photo = data['thumb_photo']
-        self.cart_quantity = data['cart_quantity']
-        self.sku = data['sku']
-        self.item_rating = ItemRating(data['item_rating'])
+        self.description = data.get('description')
+        self.id = data.get('id')
+        self.owner_id = data.get('owner_id')
+        self.price = Price(data.get('price'))
+        self.title = data.get('title')
+        self.date = data.get('date')
+        self.is_owner = data.get('is_owner')
+        self.is_adult = data.get('is_adult')
+        self.thumb_photo = data.get('thumb_photo')
+        self.cart_quantity = data.get('cart_quantity')
+        self.sku = data.get('sku')
+        self.csrf_hashes = data.get('csrf_hashes')
+        self.thumb = data.get('thumb')
+        self.has_group_access = data.get('has_group_access')
+        self.market_url = data.get('market_url')
+        self.item_rating = ItemRating(data.get('item_rating'))
+
+    def __repr__(self):
+        return (f'имя ВК товара - {self.title}\n'
+                f'штрихкод ВК товара - {self.sku}\n'
+                f'ID ВК товара - {self.id}')

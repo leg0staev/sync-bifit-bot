@@ -6,6 +6,7 @@ import aiohttp
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.Posting import Posting
 from Clases.ApiMarketplaces.Ozon.Warehouse import Warehouse
+from Clases.BifitApi.Good import Good
 from logger import logger
 
 
@@ -79,6 +80,35 @@ class OzonApiAsync(OzonApi):
                         response_data.update(errors)
         logger.debug('закончил send_remains_async в озон')
         return response_data
+
+    async def send_remains_async_v2(self, ozon_prod_dict: dict[str, str],
+                                    ozon_goods_set: set[Good],
+                                    warehouses: list[Warehouse]) -> dict:
+        logger.debug('начал send_remains_async в озон')
+
+        response_data = {}
+        stocks = self.get_remains_list(ozon_prod_dict, ozon_goods_set, warehouses)
+
+        for stock_chunk in self.chunk_stocks(stocks, 100):
+            data = {"stocks": stock_chunk}
+            async with aiohttp.ClientSession() as session:
+                async with session.post(OzonApi.SEND_REMAINS_URL,
+                                        headers=self.headers,
+                                        data=json.dumps(data)) as response:
+                    logger.info(f'HTTP Request: POST {OzonApi.SEND_REMAINS_URL}, {response.status}')
+                    try:
+                        response.raise_for_status()
+                    except aiohttp.ClientResponseError as e:
+                        logger.error(f'REQUEST ERROR {e}')
+                        response_data.update({'error': str(e)})
+
+                    response_json = await response.json()
+                    errors = OzonApi.check_sand_remains_response(response_json)
+                    if errors:
+                        response_data.update(errors)
+        logger.debug('закончил send_remains_async в озон')
+        return response_data
+
 
     async def get_warehouses_async(self) -> dict[str, str] | dict[str, list]:
         logger.debug('начал get_warehouses_async в озон')

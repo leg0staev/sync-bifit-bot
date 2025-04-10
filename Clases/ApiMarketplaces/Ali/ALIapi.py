@@ -1,11 +1,12 @@
 import json
 from typing import Dict
-from logger import logger
 
 import requests
 
 from Clases.ApiMarketplaces.Ali.AliProduct import AliProduct
 from Clases.ApiMarketplaces.Ali.SendStocksResponse import SendStocksResponse
+from Clases.BifitApi.Good import Good
+from logger import logger
 
 
 class AliApi:
@@ -13,16 +14,23 @@ class AliApi:
     SEARCH_URL = f'{BASE_URL}/scroll-short-product-by-filter'
     SEND_REMAINS_URL = f'{BASE_URL}/product/update-sku-stock'
 
-    def __init__(self, token: str, products_dict: dict[str, int] = None) -> None:
+    def __init__(self,
+                 token: str,
+                 products_dict: dict[str, int]) -> None:
         """
             Инициализация класса AliApi.
 
             :param token: токен для доступа к API
             :param products_dict: словарь с SKU товаров и их количеством
+            :param product_set: множество с товарами али
             """
         self.token = token
         self.errors = {}
-        self.bifit_products: dict[str, int] | None = products_dict
+        self.bifit_products_dict: dict[str, int] | None = products_dict
+        self.bifit_products_set: set[Good] | None = None
+
+        content_values = list(self.bifit_products_dict.keys()) or \
+                         [good.nomenclature.barcode for good in product_set]
 
         self.search_headers = {
             'x-auth-token': self.token,
@@ -39,7 +47,7 @@ class AliApi:
         self.search_data = {
             "filter": {
                 "search_content": {
-                    "content_values": list(self.bifit_products.keys()),
+                    "content_values": content_values,
                     "content_type": "SKU_SELLER_SKU"
                 }
             },
@@ -58,10 +66,10 @@ class AliApi:
         for product in products_list:
             skus_list = []
             for sku in product.skus:
-                if sku.code in self.bifit_products:
+                if sku.code in self.bifit_products_dict:
                     sku_info = {
                         "sku_code": sku.code,
-                        "inventory": self.bifit_products[sku.code]
+                        "inventory": self.bifit_products_dict[sku.code]
                     }
                     skus_list.append(sku_info)
 

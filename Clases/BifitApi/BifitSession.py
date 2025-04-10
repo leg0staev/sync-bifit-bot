@@ -12,8 +12,8 @@ from Clases.BifitApi.ParentNomenclaturesReq import ParentNomenclaturesReq
 from Clases.BifitApi.SendCSVStocksRequest import SendCSVStocksRequest
 from Exceptions.ResponseContentException import ResponseContentException
 from Exceptions.ResponseStatusException import ResponseStatusException
-from methods import *
-from methods_async import get_pic_url
+from methods.sync_methods import *
+from methods.methods_async import get_pic_url
 
 
 class BifitSession(Request):
@@ -576,7 +576,7 @@ class BifitSession(Request):
             offers_content += f"""<offer id="{offer_id}"  available="{available}">
                         <name>{product.nomenclature.name}</name>
                         <vendor>{vendor.short_name}</vendor>
-                        <price>{product.nomenclature.selling_price}</price>
+                        <price>{get_selling_price(product)}</price>
                         <currencyId>RUR</currencyId>
                         <categoryId>{category.id}</categoryId>
                         <picture>{pic_url}</picture>

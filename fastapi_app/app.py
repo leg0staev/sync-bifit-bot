@@ -5,7 +5,7 @@ from fastapi import FastAPI, Response
 from Clases.BifitApi.Contactor import Contactor
 from sessions import bifit_session
 from logger import logger
-from methods_async import get_pic_url
+from methods.methods_async import get_pic_url
 
 app = FastAPI()
 tz = timezone(timedelta(hours=3))
