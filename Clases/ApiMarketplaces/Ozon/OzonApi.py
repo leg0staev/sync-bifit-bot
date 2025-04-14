@@ -106,6 +106,28 @@ class OzonApi:
 
     @staticmethod
     def get_remains_list_v2(prod_dict: dict[str, str],
+                         bifit_remains: set[Good],
+                         warehouses: list[Warehouse]) -> list:
+        result_list = []
+
+        for product in bifit_remains:
+            if product.nomenclature.barcode in prod_dict:
+
+                remains = product.goods.quantity
+                remains_distribution = OzonApi.distribute_remains(remains,
+                                                                  len(warehouses))
+                for w, remains_to_upload in zip(warehouses, remains_distribution):
+                    item = {
+                        "offer_id": product.nomenclature.barcode,
+                        "product_id": prod_dict.get(product.nomenclature.barcode),
+                        "stock": remains_to_upload,
+                        "warehouse_id": w.id,
+                    }
+                    result_list.append(item)
+        return result_list
+
+    @staticmethod
+    def get_remains_list_v2(prod_dict: dict[str, str],
                          ozon_goods: set[Good],
                          warehouses: list[Warehouse]) -> list:
         result_list = []

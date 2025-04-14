@@ -44,7 +44,7 @@ class OzonApiAsync(OzonApi):
         logger.debug('начал send_remains_async в озон')
 
         response_data = {}
-        stocks = self.get_remains_list(ozon_prod_dict, ozon_goods_set, warehouses)
+        stocks = self.get_remains_list_v2(ozon_prod_dict, ozon_goods_set, warehouses)
 
         for stock_chunk in self.chunk_stocks(stocks, 100):
             data = {"stocks": stock_chunk}
