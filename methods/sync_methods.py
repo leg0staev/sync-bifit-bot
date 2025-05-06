@@ -3,6 +3,7 @@ from typing import Generator, Union
 from zipfile import BadZipFile
 
 import openpyxl
+
 from Clases.ApiMarketplaces.Ali.ALIapi import AliApi
 from Clases.ApiMarketplaces.Ozon.OzonApi import OzonApi
 from Clases.ApiMarketplaces.Ozon.OzonProdResponse import OzonProdResponse
@@ -371,6 +372,7 @@ def make_price_change_items_new(nomanclatures: list[Nomenclature], codes: dict):
     logger.debug('закончил make_price_change_items_new')
     return items
 
+
 def get_selling_price(product: Good) -> float:
     """
     Получает цену продажи товара из объекта товара. Если есть данные по торговым объектам,
@@ -381,12 +383,56 @@ def get_selling_price(product: Good) -> float:
     if product.nomenclature.trade_object_relations:
         trade_objects = product.nomenclature.trade_object_relations
         prices = {obj.get('tradeObjectId'): obj.get('sellingPrice') for obj in trade_objects}
-        trade_object_id = next(iter(prices)) #Заглушка, далее логика может быть изменена
+        trade_object_id = next(iter(prices))  # Заглушка, далее логика может быть изменена
         return prices.get(trade_object_id)
     return product.nomenclature.selling_price
 
-def get_vk_skus_id_dict(vk_prod: list[VkProduct]) -> dict[str:str]:
+
+def get_edit_product_req_params(owner_id: int,
+                                api_version: float,
+                                item_id: int,
+                                stock_amount: int,
+                                selling_price: float,
+                                old_price: float) -> dict[str, int | str | float]:
+    """
+    Возвращает параметры запроса для изменения товара - новую цену, количество и тп.
+    :param owner_id: id сообщества ВК
+    :param api_version: версия api ВК
+    :param item_id: id товара от ВК
+    :param stock_amount: актуальное количество товара
+    :param selling_price: актуальная цена товара
+    :param old_price: существующая в ВК цена на данный момент
+    """
+
+    if old_price > selling_price:
+        params = {
+            'owner_id': owner_id,
+            'v': api_version,
+            'item_id': item_id,
+            'stock_amount': stock_amount,
+            'price': selling_price,
+            'old_price': old_price
+        }
+    else:
+        params = {
+            'owner_id': owner_id,
+            'v': api_version,
+            'item_id': item_id,
+            'stock_amount': stock_amount,
+            'price': selling_price
+        }
+    return params
+
+
+def get_vk_skus_id_dict(vk_prod: set[VkProduct]) -> dict[str:str]:
     logger.debug('формирую словарь {штрихкод: вк id}')
     d = {product.sku: product.id for product in vk_prod}
+    logger.debug('количество товаров в словаре - %d', len(d))
+    return d
+
+
+def get_vk_skus_id_price_dict(vk_prod: set[VkProduct]) -> dict[str:(str, int)]:
+    logger.debug('формирую словарь {штрихкод: вк id, вк прайс}')
+    d = {product.sku: (product.id, product.price.amount) for product in vk_prod}
     logger.debug('количество товаров в словаре - %d', len(d))
     return d

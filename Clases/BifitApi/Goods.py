@@ -13,3 +13,12 @@ class Goods:
 
         self.changed = data.get('changed')
 
+    def __repr__(self):
+        return (f'trade_trade_object_id: {self.trade_trade_object_id},\n'
+                f'nomenclature_id: {self.nomenclature_id},\n'
+                f'quantity: {self.quantity}')
+
+
+if __name__ == '__main__':
+    goods = Goods({'nomenclatureId':0})
+    print(goods)

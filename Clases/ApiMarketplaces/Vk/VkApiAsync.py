@@ -3,21 +3,21 @@ import json
 
 import aiohttp
 
+from Clases.ApiMarketplaces.Vk.VKProduct import VkProduct
 from Clases.ApiMarketplaces.Vk.VkApi import VkApi
 from Clases.BifitApi.Good import Good
 from logger import logger
-from methods.sync_methods import get_selling_price
+from methods.sync_methods import get_selling_price, get_vk_skus_id_price_dict, get_edit_product_req_params
 
 
 class VkApiAsync(VkApi):
-
     DELAY = 0.35
     MAX_CONCURRENCY = 3
 
     def __init__(self, token: str, owner_id: int, api_version: float) -> None:
         super(VkApiAsync, self).__init__(token, owner_id, api_version)
 
-    async def get_all_products_async(self):
+    async def get_all_products_async(self) -> list[str]:
         """Запрашивает все товары из VK асинхронно."""
         logger.debug('get_all_products_async (VkApiAsync) началась')
 
@@ -62,12 +62,15 @@ class VkApiAsync(VkApi):
         logger.debug('get_all_products_async (VkApiAsync) завершилась без ошибок')
         return vk_products_items
 
-
     async def send_remains_async_v2(self,
-                                    vk_prod_dict: dict[str, str],
-                                    bifit_remains: set[Good]) -> dict[str, dict]:
+                                    bifit_remains: set[Good],
+                                    vk_products: set[VkProduct]) -> dict[str, dict]:
+
         """Send remaining stock to VK asynchronously."""
         logger.debug('send_remains_async_v2 (VkApiAsync) запущена')
+
+        vk_prod_dict = get_vk_skus_id_price_dict(vk_products)
+        logger.debug('vk_products_dict:\n%s', vk_prod_dict)
 
         errors: dict[str, dict] = {}
 
@@ -75,17 +78,18 @@ class VkApiAsync(VkApi):
 
             for good in bifit_remains:
                 if good.nomenclature.barcode not in vk_prod_dict:
-                    logger.warning('Товар с штрихкодом - %s отсутствует в словаре ВК. пропускаю его', good.nomenclature.barcode)
+                    logger.warning('Товар с штрихкодом - %s отсутствует в словаре ВК. пропускаю его',
+                                   good.nomenclature.barcode)
                     continue
 
+                item_id = vk_prod_dict[good.nomenclature.barcode][0]
+                stock_amount = good.goods.quantity
+                selling_price = get_selling_price(good)
+                old_price = vk_prod_dict[good.nomenclature.barcode][1]
 
-                params = {
-                    'owner_id': self.owner_id,
-                    'v': self.api_version,
-                    'item_id': vk_prod_dict[good.nomenclature.barcode],
-                    'stock_amount': good.goods.quantity,
-                    'price': get_selling_price(good)
-                }
+                params = get_edit_product_req_params(self.owner_id, self.api_version, item_id, stock_amount,
+                                                     selling_price, old_price)
+
 
                 logger.debug('штрихкод товара: %s\nparams: %s', good.nomenclature.barcode, params)
 

@@ -184,7 +184,7 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         ali_goods: set[Good] = market_prod_dict.get('ali')
         await update.message.reply_text(f"количество товаров для али - {len(ali_goods)}")
         vk_goods: set[Good] = market_prod_dict.get('vk')
-        await update.message.reply_text(f"количество товаров для вк - {len(ali_goods)}")
+        await update.message.reply_text(f"количество товаров для вк - {len(vk_goods)}")
         ozon_goods: set[Good] = market_prod_dict.get('oz')
         await update.message.reply_text(f"количество товаров для озон - {len(ozon_goods)}")
         coroutines = set()

@@ -54,15 +54,14 @@ async def send_to_vk_async_v2(vk_token: str,
         logger.error(f'ошибка на этапе запроса товаров в ВК - {vk_products_items[1]}')
         return {'error': f'Ошибка в ответе сервера на запрос товаров ВК - {vk_products_items[1]}'}
     try:
-        vk_products = [VkProduct(item) for item in vk_products_items]
+        vk_products = {VkProduct(item) for item in vk_products_items}
     except KeyError as e:
         logger.error(f'Ошибка формирования списка товаров - {e}')
         logger.debug('send_to_vk_async finished with exception')
         return {'error': f'Ошибка формирования списка товаров ВК - {str(e)}'}
-    vk_products_dict = get_vk_skus_id_dict(vk_products)
-    logger.debug('vk_products_dict:\n%s', vk_products_dict)
+
     logger.debug('send_to_vk_async finished smoothly')
-    return await vk_api.send_remains_async_v2(vk_products_dict, vk_goods_set)
+    return await vk_api.send_remains_async_v2(vk_goods_set, vk_products)
 
 
 async def send_to_ozon_async_v2(ozon_admin_key: str, ozon_client_id: str, ozon_goods_set: set[Good]) -> dict:

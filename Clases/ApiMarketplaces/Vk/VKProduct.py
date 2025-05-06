@@ -28,3 +28,12 @@ class VkProduct:
         return (f'имя ВК товара - {self.title}\n'
                 f'штрихкод ВК товара - {self.sku}\n'
                 f'ID ВК товара - {self.id}')
+
+
+    def __eq__(self, other):
+        if isinstance(other, VkProduct):
+            return self.id == other.id
+        return False
+
+    def __hash__(self):
+        return hash(self.id)
