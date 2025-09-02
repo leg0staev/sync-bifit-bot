@@ -52,7 +52,7 @@ class AliApiAsync(AliApi):
         results: list = response.get('results')
         if results:
             errors = {result.get('external_id'): result.get('errors') for result in results if result.get('errors')}
-            logger.debug(f'response errors messages {errors=}')
+            logger.debug(f'ALI response errors messages {errors=}')
         else:
             errors = {'error': f'Ошибка отправки товаров на Али. Сервер вернул не понятно что - {response}'}
         logger.debug('send_remains_async (AliApiAsync) FINISHED')

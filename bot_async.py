@@ -210,6 +210,7 @@ async def sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                                 f"{errors}")
             else:
                 await update.message.reply_text("Отправка прошла без ошибок!")
+        return None
 
 
 async def get_yab_pic_names(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
