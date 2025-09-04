@@ -521,7 +521,7 @@ class BifitSession(Request):
         my_site_url = 'https://pronogti.store'
 
         tz = timezone(timedelta(hours=3))
-        current_time = datetime.now(tz)
+        current_time = datetime.now(tz).strftime("%Y-%m-%d %H:%M")
         products_response = await self.get_bifit_prod_by_marker(('yab',))
 
         yab_goods_set = products_response.get('yab')
@@ -590,7 +590,7 @@ class BifitSession(Request):
             categories_content += f'<category id="{category.id}">{category.name}</category>\n'
 
         self.yml_str = f"""<?xml version="1.0" encoding="UTF-8"?>
-    <yml_catalog date="{current_time.isoformat()}">
+    <yml_catalog date="{current_time}">
         <shop>
             <name>pronogti.store</name>
             <company>pronogti.store</company>
