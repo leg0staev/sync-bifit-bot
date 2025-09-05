@@ -703,7 +703,7 @@ class BifitSession(Request):
         </shop>
     </yml_catalog>
 """
-        with open('data/yml.yml', 'w') as yml:
+        with open('data/yml.txt', 'w') as yml:
             yml.writelines(self.yml_str)
 
         logger.debug(f'закончил get_yml_file_async')

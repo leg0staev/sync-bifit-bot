@@ -85,6 +85,6 @@ async def get_yml_from_session():
 
 @app.get("/yml_file")
 def get_yml():
-    with open("data/yml.yml", "r", encoding="utf-8") as f:
+    with open("data/yml.txt", "r", encoding="utf-8") as f:
         yml_content = f.read()
     return Response(content=yml_content, media_type="application/xml")

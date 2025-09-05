@@ -316,7 +316,7 @@ async def make_write_off_document(update: Update, context: ContextTypes.DEFAULT_
     await query.edit_message_text(text="Документы созданы!")
 
 async def send_yml_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    file_path = "data/yml.yml"
+    file_path = "data/yml.txt"
 
     if not os.path.exists(file_path):
         await update.message.reply_text("Файл не найден!")
