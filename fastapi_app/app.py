@@ -13,7 +13,7 @@ tz = timezone(timedelta(hours=3))
 
 @app.get("/")
 async def read_root():
-    return {"Hello": "World"}
+    return {"server": "is up"}
 
 
 @app.get("/yml_old")
@@ -82,3 +82,9 @@ async def get_yml_from_session():
     logger.debug(f'get_yml_from_session started')
     yml = bifit_session.yml_str
     return Response(content=yml, media_type="application/xml")
+
+@app.get("/yml_file")
+def get_yml():
+    with open("data/yml.yml", "r", encoding="utf-8") as f:
+        yml_content = f.read()
+    return Response(content=yml_content, media_type="application/xml")

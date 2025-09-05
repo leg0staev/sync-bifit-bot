@@ -7,3 +7,4 @@ settings.py
 sync-bot.tar
 *.xlsx
 *.*.xlsx#
+*.yml

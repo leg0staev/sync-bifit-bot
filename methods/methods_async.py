@@ -1,4 +1,5 @@
 import asyncio
+import asyncssh
 from collections import namedtuple
 from typing import AsyncGenerator
 from zipfile import BadZipFile
@@ -226,3 +227,20 @@ async def get_pic_url(pic_name: str, vendor_name: str, to_bot: bool = False) -> 
     logger.debug('ОК нашел картинку на сервере.\n'
                  'get_pic_url finished smoothly')
     return pic_url
+
+async def upload_file_async(local_path: str, remote_path: str, hostname: str, username: str):
+    """Загружает файл на удалённый сервер по SSH с помощью ключа"""
+    logger.debug('upload_file_async started')
+
+    try:
+        async with asyncssh.connect(
+                hostname,
+                username=username,
+                known_hosts=None
+        ) as conn:
+            await asyncssh.scp(local_path, (conn, remote_path))
+            logger.info('Файл %s успешно загружен', local_path)
+            logger.debug('upload_file_async finished smoothly')
+    except (asyncssh.Error, OSError) as e:
+        logger.error("❌ Ошибка при загрузке файла: %s", e)
+        logger.debug('upload_file_async finished with error')
