@@ -1,6 +1,7 @@
 """
 Бот синхронизации склада Бифит-кассы со складами маркетплэйсов.
 """
+import os
 import threading
 import time
 
@@ -314,6 +315,22 @@ async def make_write_off_document(update: Update, context: ContextTypes.DEFAULT_
     # Ваша логика для make_document
     await query.edit_message_text(text="Документы созданы!")
 
+async def send_yml_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file_path = "data/yml.yml"
+
+    if not os.path.exists(file_path):
+        await update.message.reply_text("Файл не найден!")
+        return
+
+    try:
+        await context.bot.send_document(
+            chat_id=update.effective_chat.id,
+            document=open(file_path, "rb"),
+            caption="Вот ваш файл!"
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Ошибка: {e}")
+
 
 async def main_bot_async() -> None:
     """Старт бота"""
@@ -326,6 +343,7 @@ async def main_bot_async() -> None:
     application.add_handler(CommandHandler("get_yml", get_new_yml))
     application.add_handler(CommandHandler("make_write_off_docs", make_write_off_docs))
     # application.add_handler(CommandHandler("sync", synchronization))
+    application.add_handler(CommandHandler("get_file", send_yml_file))
     application.add_handler(CommandHandler("sync", sync))
     application.add_handler(
         MessageHandler(filters.Document.MimeType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
